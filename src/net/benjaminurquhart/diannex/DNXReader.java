@@ -27,6 +27,8 @@ public class DNXReader {
 	public final Map<String, DNXScene> sceneMap;
 	public final Map<String, DNXFunction> functionMap;
 	public final Map<String, DNXDefinition> definitionMap;
+	
+	protected final List<DNXBytecode> entryPoints;
 
 	public DNXReader(File file) throws IOException {
 		this(Files.readAllBytes(file.toPath()));
@@ -93,9 +95,13 @@ public class DNXReader {
 			Map<String, DNXFunction> f = new HashMap<>();
 			Map<String, DNXDefinition> d = new HashMap<>();
 			
+			entryPoints = new ArrayList<>();
+			
 			scenes.forEach(v -> {v.postProcess(this); s.put(v.getSymbol().get(), v);});
 			functions.forEach(v -> {v.postProcess(this); f.put(v.getSymbol().get(), v);});
 			definitions.forEach(v -> {v.postProcess(this); d.put(v.getSymbol().get(), v);});
+			
+			entryPoints.sort((a,b) -> bytecode.indexOf(a) - bytecode.indexOf(b));
 			
 			sceneMap = Collections.unmodifiableMap(s);
 			functionMap = Collections.unmodifiableMap(f);

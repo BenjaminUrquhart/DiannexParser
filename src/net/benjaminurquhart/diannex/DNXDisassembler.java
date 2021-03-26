@@ -2,7 +2,7 @@ package net.benjaminurquhart.diannex;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.Collection;
+//import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,11 +14,11 @@ import java.util.stream.Collectors;
 import guru.nidi.graphviz.attribute.Color;
 import guru.nidi.graphviz.engine.Format;
 import guru.nidi.graphviz.engine.Graphviz;
-import guru.nidi.graphviz.model.Link;
-import guru.nidi.graphviz.model.LinkTarget;
+//import guru.nidi.graphviz.model.Link;
+//import guru.nidi.graphviz.model.LinkTarget;
 import guru.nidi.graphviz.model.MutableGraph;
 import guru.nidi.graphviz.model.MutableNode;
-import guru.nidi.graphviz.model.PortNode;
+//import guru.nidi.graphviz.model.PortNode;
 
 import static guru.nidi.graphviz.model.Factory.*;
 
@@ -29,26 +29,40 @@ public class DNXDisassembler {
 		private static int nextId;
 		
 		public int id;
-		public Block entry, left, right;
+		public Block left, right;
 		public List<DNXBytecode> contents;
 		
+		public Set<Block> entryPoints;
+		
 		public Block(Block block) {
+			entryPoints = new HashSet<>();
 			contents = new ArrayList<>();
-			entry = block;
 			id = nextId++;
+			
+			if(block != null) {
+				entryPoints.add(block);
+			}
+		}
+		
+		public boolean isEmpty() {
+			return contents.isEmpty() && left == null && right == null;
 		}
 		
 		public String toString() {
+			return toString(null);
+		}
+		
+		public String toString(DNXReader reader) {
 			StringBuilder sb = new StringBuilder(String.format(
 					"Block %d [entry=%s, left=%s, right=%s]",
 					id,
-					entry == null ? null: entry.id,
+					entryPoints.stream().map(b -> String.valueOf(b.id)).collect(Collectors.toList()),
 					left == null ? null : left.id,
 					right == null ? null : right.id
 			));
 			for(DNXBytecode entry : contents) {
 				sb.append("\n");
-				sb.append(entry);
+				sb.append(entry.toString(reader));
 			}
 			
 			return sb.toString();
@@ -64,27 +78,46 @@ public class DNXDisassembler {
 	}
 	
 	public static List<DNXBytecode> trace(DNXBytecode entry, DNXReader reader) {
-		List<Block> blocks = trace(entry, reader, new HashSet<>(), new ArrayList<>(), reader.bytecode.indexOf(entry));
+		int entryIndex = reader.entryPoints.indexOf(entry);
+		if(entryIndex == -1) {
+			throw new IllegalStateException("Provided bytecode is not an entry point");
+		}
+		
 		List<DNXBytecode> out = new ArrayList<>();
+		int index = reader.bytecode.indexOf(entry);
+		DNXBytecode next = entryIndex + 1 < reader.entryPoints.size() ? reader.entryPoints.get(entryIndex + 1) : null;
+		
+		do {
+			out.add(entry);
+			if(index >= reader.bytecode.size() - 1) {
+				break;
+			}
+			entry = reader.bytecode.get(++index);
+		} while(entry != next);
+		
+		/*
+		List<Block> blocks = trace(entry, reader, new ArrayList<>(), new HashMap<>(), start, start);
 		traverseTree(blocks.get(0), out);
+		*/
 		
 		return out;
 	}
 	
 	public static BufferedImage renderGraph(DNXBytecode entry, DNXReader reader) {
-		List<Block> blocks = trace(entry, reader, new HashSet<>(), new ArrayList<>(), reader.bytecode.indexOf(entry));
+		int start = reader.bytecode.indexOf(entry);
+		List<Block> blocks = trace(entry, reader, new ArrayList<>(), new HashMap<>(), start, start);
 		MutableGraph graph = mutGraph("disassembly").setDirected(true);
 		System.out.println("Constructing...");
-		graph.add(buildGraph(blocks.get(0), new HashMap<>()));
-		
+		graph.add(buildGraph(blocks.get(0), new HashMap<>(), reader));
+		/*
 		for(MutableNode node : graph.rootNodes()) {
 			printRecursive(node, 0);
-		}
+		}*/
 		
 		System.out.println("Rendering...");
 		return Graphviz.fromGraph(graph).render(Format.PNG).toImage();
 	}
-	
+	/*
 	private static void printRecursive(LinkTarget node, int depth) {
 		for(int i = 0; i < depth; i++) System.out.print("-");
 		String name = "???";
@@ -101,12 +134,21 @@ public class DNXDisassembler {
 			links.forEach(l -> printRecursive(l.to(), depth + 1));
 		}
 	}
-	
-	private static MutableNode buildGraph(Block block, Map<Block, MutableNode> map) {
-		MutableNode node = map.computeIfAbsent(block, b -> mutNode(String.valueOf(b.id))), tmp;
-		if(block.entry != null) {
-			tmp = map.get(block.entry).addLink(node);
-			if(block == block.entry.left) {
+	*/
+	private static MutableNode buildGraph(Block block, Map<Block, MutableNode> map, DNXReader reader) {
+		if(block.isEmpty()) {
+			return null;
+		}
+		MutableNode node = map.computeIfAbsent(block, b -> mutNode(b.toString(reader))), tmp;
+		for(Block entry : block.entryPoints) {
+			if(entry.isEmpty()) {
+				continue;
+			}
+			if(!map.containsKey(entry)) {
+				buildGraph(entry, map, reader);
+			}
+			tmp = map.get(entry).addLink(node);
+			if(block == entry.left) {
 				tmp.add(Color.GREEN);
 			}
 			else {
@@ -114,14 +156,15 @@ public class DNXDisassembler {
 			}
 		}
 		if(block.left != null) {
-			buildGraph(block.left, map);
+			buildGraph(block.left, map, reader);
 		}
 		if(block.right != null) {
-			buildGraph(block.right, map);
+			buildGraph(block.right, map, reader);
 		}
 		return node;
 	}
 	
+	@SuppressWarnings("unused")
 	private static void traverseTree(Block block, List<DNXBytecode> out) {
 		for(DNXBytecode entry : block.contents) {
 			out.add(entry);
@@ -134,8 +177,7 @@ public class DNXDisassembler {
 		}
 	}
 	
-	private static List<Block> trace(DNXBytecode entry, DNXReader reader, Set<DNXBytecode> seen, List<Block> blocks, int index) {
-		DNXBytecode jumpEntry;
+	private static List<Block> trace(DNXBytecode entry, DNXReader reader, List<Block> blocks, Map<Integer, Block> jmpMap, int index, int start) {
 		if(blocks.isEmpty()) {
 			blocks.add(new Block(null));
 		}
@@ -144,39 +186,55 @@ public class DNXDisassembler {
 		int jmp, size = reader.bytecode.size();
 		
 		do {
-			if(EXITS.contains(entry.getOpcode())) {
-				break;
-			}
-			else if(!seen.add(entry)) {
-				return blocks;
+			if(jmpMap.containsKey(index)) {
+				block = jmpMap.get(index);
+				if(current.left == null) {
+					current.left = block;
+				}
+				else if(current.right == null) {
+					current.right = block;
+				}
+				else {
+					throw new IllegalStateException("Blocks cannot have more than 2 children");
+				}
+				block.entryPoints.add(current);
+				current = block;
 			}
 			current.contents.add(entry);
 			
 			if(JUMPS.contains(entry.getOpcode())) {
 				jmp = index + entry.getFirstArg();
-				block = new Block(current);
-				if(entry.getOpcode() == DNXBytecode.Opcode.JF) {
-					current.right = block;
+				if(jmpMap.containsKey(jmp)) {
+					block = jmpMap.get(jmp);
 				}
 				else {
+					block = new Block(current);
+					jmpMap.put(jmp, block);
+					blocks.add(block);
+				}
+				if(entry.getOpcode() == DNXBytecode.Opcode.JF) {
+					if(current.right == null) {
+						current.right = block;
+					}
+					else {
+						current.left = block;
+					}
+				}
+				else if(current.left == null) {
 					current.left = block;
 				}
-				blocks.add(block);
-				jumpEntry = reader.bytecode.get(jmp);
-				if(EXITS.contains(jumpEntry.getOpcode())) {
-					block.contents.add(jumpEntry);
-				}
 				else {
-					trace(jumpEntry, reader, seen, blocks, jmp);
+					current.right = block;
 				}
 				block = new Block(current);
-				if(entry.getOpcode() == DNXBytecode.Opcode.JF) {
+				blocks.add(block);
+				
+				if(current.left == null) {
 					current.left = block;
 				}
 				else {
 					current.right = block;
 				}
-				blocks.add(block);
 				current = block;
 			}
 			entry = ++index < size ? reader.bytecode.get(index) : null;

@@ -21,6 +21,8 @@ public class DNXDefinition {
 		symbol = reader.strings.get(symbolIndex);
 		bytecode = bytecodeIndex < 0 ? null : reader.bytecode.get(bytecodeIndex);
 		
+		reader.entryPoints.add(bytecode);
+		
 		if(stringReference < 0) {
 			int newRef = stringReference ^ (1 << 31);
 			//System.out.println(stringReference + " -> " + newRef);
