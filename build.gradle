@@ -1,0 +1,25 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '4.0.4'
+}
+repositories {
+    jcenter()
+    maven { url 'https://jitpack.io' }
+}
+group = "net.benjaminurquhart.diannex"
+mainClassName = "net.benjaminurquhart.diannex.Main"
+
+
+sourceSets {
+    main.java.srcDirs = ['src']
+    main.resources.srcDirs = ['src/resources']
+}
+
+dependencies {
+	implementation "com.github.nidi3:graphviz-java:f0c1fdfa37"
+	implementation "ch.qos.logback:logback-classic:1.2.3"
+}
+
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'

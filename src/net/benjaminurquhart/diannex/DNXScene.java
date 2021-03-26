@@ -1,5 +1,6 @@
 package net.benjaminurquhart.diannex;
 
+import java.awt.image.BufferedImage;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -55,6 +56,10 @@ public class DNXScene {
 		}
 		
 		return sb.toString();
+	}
+	
+	public BufferedImage graph(DNXReader reader) {
+		return DNXDisassembler.renderGraph(bytecode.get(0), reader);
 	}
 	
 	public String toString() {
