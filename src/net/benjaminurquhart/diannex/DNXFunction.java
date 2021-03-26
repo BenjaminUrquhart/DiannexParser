@@ -26,12 +26,14 @@ public class DNXFunction {
 	}
 	
 	protected void postProcess(DNXReader reader) {
+		DNXBytecode entry;
 		symbol = reader.strings.get(symbolPointer);
 		bytecode = new ArrayList<>();
 		for(int index : bytecodeIndicies) {
-			bytecode.add(reader.bytecode.get(index));
+			entry = reader.bytecode.get(index);
+			reader.entryPoints.add(entry);
+			bytecode.add(entry);
 		}
-		
 		//System.out.println(this);
 	}
 	

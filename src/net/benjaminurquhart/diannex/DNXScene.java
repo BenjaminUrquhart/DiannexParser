@@ -27,10 +27,13 @@ public class DNXScene {
 	}
 	
 	protected void postProcess(DNXReader reader) {
+		DNXBytecode entry;
 		symbol = reader.strings.get(symbolPointer);
 		bytecode = new ArrayList<>();
 		for(int index : bytecodeIndicies) {
-			bytecode.add(reader.bytecode.get(index));
+			entry = reader.bytecode.get(index);
+			reader.entryPoints.add(entry);
+			bytecode.add(entry);
 		}
 		
 		//System.out.println(this);
@@ -63,6 +66,6 @@ public class DNXScene {
 	}
 	
 	public String toString() {
-		return String.format("DNXScene %s [%d script(s)]", symbol, bytecode.size());
+		return String.format("DNXScene %s [%d script(s)]", symbol.getClean(), bytecode.size());
 	}
 }

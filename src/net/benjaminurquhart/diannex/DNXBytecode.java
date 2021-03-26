@@ -1,6 +1,8 @@
 package net.benjaminurquhart.diannex;
 
 import java.nio.ByteBuffer;
+import java.util.EnumSet;
+import java.util.Set;
 
 public class DNXBytecode {
 	
@@ -102,6 +104,14 @@ public class DNXBytecode {
 			throw new IllegalArgumentException(String.format("Invalid opcode: 0x%x", value));
 		}
 	}
+	
+	private static final Set<Opcode> STRING_RESOLVE = EnumSet.of(
+			Opcode.PUSHS,
+			Opcode.PUSHBS,
+			Opcode.CALLEXT,
+			Opcode.PUSHVARGLB,
+			Opcode.SETVARGLB
+	);
 
 	private Type type;
 	private Opcode opcode;
@@ -192,7 +202,7 @@ public class DNXBytecode {
 			return;
 		}
 		String str = null;
-		if(opcode == Opcode.PUSHS || opcode == Opcode.PUSHBS || opcode == Opcode.CALLEXT) {
+		if(STRING_RESOLVE.contains(opcode)) {
 			str = (opcode == Opcode.PUSHS ? reader.translations : reader.strings).get(arg1).getClean();
 		}
 		else if(opcode == Opcode.CALL) {
@@ -202,13 +212,13 @@ public class DNXBytecode {
 			sb.append(arg1); 
 		}
 		if(str != null) {
-			if(opcode.name().startsWith("CALL")) {
+			if(opcode.name().endsWith("S")) {
+				sb.append('"');
 				sb.append(str);
+				sb.append('"');
 			}
 			else {
-				sb.append('"');
 				sb.append(str);
-				sb.append('"');
 			}
 		}
 	}
