@@ -2,49 +2,31 @@ package net.benjaminurquhart.diannex;
 
 import java.nio.ByteBuffer;
 
-public class DNXDefinition {
+public class DNXDefinition extends DNXCompiled {
 
-	private int symbolIndex, stringReference, bytecodeIndex;
-	
-	private DNXString symbol, reference;
-	private DNXBytecode bytecode;
+	private int stringReference;
+	private DNXString reference;
 	
 	public DNXDefinition(ByteBuffer reader) {
-		symbolIndex = reader.getInt();
+		symbolPointer = reader.getInt();
 		stringReference = reader.getInt();
-		bytecodeIndex = reader.getInt();
-		
-		//System.out.printf("DNXDefinition [symbol=%d, ref=%d, bytecode=%d]\n", symbolIndex, stringReference, bytecodeIndex);
+		bytecodeIndicies.add(reader.getInt());
 	}
 	
 	public void postProcess(DNXReader reader) {
-		symbol = reader.strings.get(symbolIndex);
-		bytecode = bytecodeIndex < 0 ? null : reader.bytecode.get(bytecodeIndex);
-		
-		reader.entryPoints.add(bytecode);
+		super.postProcess(reader);
 		
 		if(stringReference < 0) {
 			int newRef = stringReference ^ (1 << 31);
-			//System.out.println(stringReference + " -> " + newRef);
 			reference = reader.strings.get(newRef);
 		}
 		else {
 			reference = reader.translations.get(stringReference);
 		}
-		
-		//System.out.println(this);
-	}
-	
-	public DNXString getSymbol() {
-		return symbol;
 	}
 	
 	public DNXString getReference() {
 		return reference;
-	}
-	
-	public DNXBytecode getBytecode() {
-		return bytecode;
 	}
 	
 	public String toString() {

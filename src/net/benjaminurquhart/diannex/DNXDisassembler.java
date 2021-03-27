@@ -2,28 +2,13 @@ package net.benjaminurquhart.diannex;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-//import java.util.Collection;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
-import guru.nidi.graphviz.attribute.Color;
-import guru.nidi.graphviz.engine.Format;
-import guru.nidi.graphviz.engine.Graphviz;
-//import guru.nidi.graphviz.model.Link;
-//import guru.nidi.graphviz.model.LinkTarget;
-import guru.nidi.graphviz.model.MutableGraph;
-import guru.nidi.graphviz.model.MutableNode;
-//import guru.nidi.graphviz.model.PortNode;
 
-import static guru.nidi.graphviz.model.Factory.*;
-
+// TOD: GraphViz
 public class DNXDisassembler {
-	
+	/*
 	private static class Block {
 		
 		private static int nextId;
@@ -71,13 +56,13 @@ public class DNXDisassembler {
 	}
 	
 	private static final Set<DNXBytecode.Opcode> JUMPS = EnumSet.of(DNXBytecode.Opcode.J, DNXBytecode.Opcode.JT, DNXBytecode.Opcode.JF);
-	private static final Set<DNXBytecode.Opcode> EXITS = EnumSet.of(DNXBytecode.Opcode.EXIT, DNXBytecode.Opcode.RET);
+	private static final Set<DNXBytecode.Opcode> EXITS = EnumSet.of(DNXBytecode.Opcode.EXIT, DNXBytecode.Opcode.RET);*/
 
 	public static List<String> disassemble(DNXBytecode entry, DNXReader reader) {
-		return trace(entry, reader).stream().map(b -> b.toString(reader)).collect(Collectors.toList());
+		return getBytecodeChunk(entry, reader).stream().map(b -> b.toString(reader)).collect(Collectors.toList());
 	}
 	
-	public static List<DNXBytecode> trace(DNXBytecode entry, DNXReader reader) {
+	public static List<DNXBytecode> getBytecodeChunk(DNXBytecode entry, DNXReader reader) {
 		int entryIndex = reader.entryPoints.indexOf(entry);
 		if(entryIndex == -1) {
 			throw new IllegalStateException("Provided bytecode is not an entry point");
@@ -95,27 +80,20 @@ public class DNXDisassembler {
 			entry = reader.bytecode.get(++index);
 		} while(entry != next);
 		
-		/*
-		List<Block> blocks = trace(entry, reader, new ArrayList<>(), new HashMap<>(), start, start);
-		traverseTree(blocks.get(0), out);
-		*/
-		
 		return out;
 	}
 	
 	public static BufferedImage renderGraph(DNXBytecode entry, DNXReader reader) {
+		throw new UnsupportedOperationException("Unimplemented");
+		/*
 		int start = reader.bytecode.indexOf(entry);
 		List<Block> blocks = trace(entry, reader, new ArrayList<>(), new HashMap<>(), start, start);
 		MutableGraph graph = mutGraph("disassembly").setDirected(true);
 		System.out.println("Constructing...");
 		graph.add(buildGraph(blocks.get(0), new HashMap<>(), reader));
-		/*
-		for(MutableNode node : graph.rootNodes()) {
-			printRecursive(node, 0);
-		}*/
 		
 		System.out.println("Rendering...");
-		return Graphviz.fromGraph(graph).render(Format.PNG).toImage();
+		return Graphviz.fromGraph(graph).render(Format.PNG).toImage();*/
 	}
 	/*
 	private static void printRecursive(LinkTarget node, int depth) {
@@ -134,7 +112,7 @@ public class DNXDisassembler {
 			links.forEach(l -> printRecursive(l.to(), depth + 1));
 		}
 	}
-	*/
+	
 	private static MutableNode buildGraph(Block block, Map<Block, MutableNode> map, DNXReader reader) {
 		if(block.isEmpty()) {
 			return null;
@@ -164,7 +142,6 @@ public class DNXDisassembler {
 		return node;
 	}
 	
-	@SuppressWarnings("unused")
 	private static void traverseTree(Block block, List<DNXBytecode> out) {
 		for(DNXBytecode entry : block.contents) {
 			out.add(entry);
@@ -245,5 +222,5 @@ public class DNXDisassembler {
 		}
 		
 		return blocks;
-	}
+	}*/
 }

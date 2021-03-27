@@ -120,7 +120,6 @@ public class DNXReader {
 		int size = reader.getInt();
 		System.out.printf("Reading list of %s with %d elements\n", clazz, size);
 		for(int i = 0; i < size; i++) {
-			//System.out.print(i + ": ");
 			out.add(constructor.newInstance(reader));
 		}
 		return Collections.unmodifiableList(out);
