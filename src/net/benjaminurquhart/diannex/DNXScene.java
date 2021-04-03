@@ -1,7 +1,7 @@
 package net.benjaminurquhart.diannex;
 
-import java.awt.image.BufferedImage;
 import java.nio.ByteBuffer;
+
 public class DNXScene extends DNXCompiled {
 
 	public DNXScene(ByteBuffer reader) {
@@ -11,9 +11,5 @@ public class DNXScene extends DNXCompiled {
 			bytecodeIndicies.add(reader.getInt());
 		}
 		
-	}
-	
-	public BufferedImage graph(DNXReader reader) {
-		return DNXDisassembler.renderGraph(bytecode.get(0), reader);
 	}
 }
