@@ -18,8 +18,6 @@ public class Main {
 		DNXReader reader = new DNXReader(new File(sc.nextLine()));
 		sc.close();
 		
-		ImageIO.write(reader.sceneMap.get("battles.metta.sb").graph(reader), "png", new File("out.png"));
-		
 		File folder = new File("output");
 		File scenes = new File(folder, "scenes");
 		File functions = new File(folder, "functions");
