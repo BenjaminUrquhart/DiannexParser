@@ -28,6 +28,7 @@ public class DNXDisassembler {
 		public boolean conditionalExit;
 		public List<DNXBytecode> contents;
 		
+		public Set<Block> choices;
 		public Set<Block> entryPoints;
 		
 		public Block(Integer id) {
@@ -101,6 +102,8 @@ public class DNXDisassembler {
 		Block exit = new Block(code.size());
 		out.put(exit.id, exit);
 		
+		
+		
 		Block current = entry;
 		
 		Function<DNXBytecode, Integer> getAddress = (instr) -> addressMap.computeIfAbsent(instr, $ -> code.indexOf(instr));
@@ -173,7 +176,21 @@ public class DNXDisassembler {
 			
 			current.contents.add(instr);
 			
-			if(instr.getOpcode() == Opcode.J) {
+			if(instr.getOpcode().name().matches("CHO(IC|OS)EADDT?")) {
+				if(current.choices == null) {
+					current.choices = new HashSet<>();
+				}
+				blockAt = getBlock.apply(addr + instr.getFirstArg(), instr);
+				blockAt.entryPoints.add(current);
+				current.choices.add(blockAt);
+			}
+			if(instr.getOpcode() == Opcode.CHOICESEL || instr.getOpcode() == Opcode.CHOOSESEL) {
+				current.conditionalExit = true;
+				current.right = null;
+				current.left = null;
+				current = null;
+			}
+			else if(instr.getOpcode() == Opcode.J) {
 				blockAt = getBlock.apply(addr + instr.getFirstArg(), instr);
 				
 				current.conditionalExit = false;
@@ -242,7 +259,12 @@ public class DNXDisassembler {
 		sb.append("\n");
 		
 		for(Block block : blocks.values()) {
-			if(block.conditionalExit) {
+			if(block.choices != null) {
+				for(Block choice : block.choices) {
+					sb.append(String.format("    block_%s -> block_%s [color=\"orange\"];\n", block.id, choice.id));
+				}
+			}
+			else if(block.conditionalExit) {
 				if(block.left != null) {
 					sb.append(String.format("    block_%s -> block_%s [color=\"green\"];\n", block.id, block.left.id));
 				}
