@@ -162,8 +162,8 @@ public class DNXDisassembler {
 			if(blockAt != null) {
 				if(current != null) {
 					current.conditionalExit = false;
-					current.right = blockAt.right;
-					current.left = blockAt.left;
+					current.right = blockAt;
+					current.left = blockAt;
 					
 					blockAt.entryPoints.add(current);
 				}
