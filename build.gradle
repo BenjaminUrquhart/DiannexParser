@@ -19,6 +19,7 @@ sourceSets {
 dependencies {
 	implementation "com.github.nidi3:graphviz-java:f0c1fdfa37"
 	implementation "ch.qos.logback:logback-classic:1.2.3"
+	implementation "com.google.guava:guava:30.1.1-jre"
 }
 
 sourceCompatibility = '1.8'

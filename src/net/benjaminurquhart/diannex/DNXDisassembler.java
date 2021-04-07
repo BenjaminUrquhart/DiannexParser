@@ -41,7 +41,7 @@ public class DNXDisassembler {
 			return toString(null);
 		}
 		
-		public String toString(DNXReader reader) {
+		public String toString(DNXFile reader) {
 			StringBuilder sb = new StringBuilder(String.format(
 					"Block %d [entry=%s, left=%s, right=%s]",
 					id,
@@ -62,11 +62,14 @@ public class DNXDisassembler {
 	//private static final Set<DNXBytecode.Opcode> JUMPS = EnumSet.of(DNXBytecode.Opcode.J, DNXBytecode.Opcode.JT, DNXBytecode.Opcode.JF);
 	private static final Set<DNXBytecode.Opcode> EXITS = EnumSet.of(DNXBytecode.Opcode.EXIT, DNXBytecode.Opcode.RET);
 	
-	public static List<String> disassemble(DNXBytecode entry, DNXReader reader) {
-		return getBytecodeChunk(entry, reader).stream().map(b -> b.toString(reader)).collect(Collectors.toList());
+	public static List<String> disassemble(DNXCompiled entry, DNXFile reader) {
+		if(entry.instructions == null) {
+			entry.instructions = getBytecodeChunk(entry.entryPoint, reader);
+		}
+		return entry.instructions.stream().map(b -> b.toString(reader)).collect(Collectors.toList());
 	}
 	
-	public static List<DNXBytecode> getBytecodeChunk(DNXBytecode entry, DNXReader reader) {
+	public static List<DNXBytecode> getBytecodeChunk(DNXBytecode entry, DNXFile reader) {
 		int entryIndex = reader.entryPoints.indexOf(entry);
 		if(entryIndex == -1) {
 			throw new IllegalStateException("Provided bytecode is not an entry point");
@@ -87,13 +90,13 @@ public class DNXDisassembler {
 		return out;
 	}
 	
-	public static BufferedImage renderGraph(DNXBytecode entry, DNXReader reader) {
+	public static BufferedImage renderGraph(DNXBytecode entry, DNXFile reader) {
 		String digraph = convertToDigraph(createBlocks(entry, reader), reader);
 		//System.out.println(digraph);
 		return Graphviz.fromString(digraph).render(Format.PNG).toImage();
 	}
 	
-	private static Map<Integer, Block> createBlocks(DNXBytecode entryBytecode, DNXReader reader) {
+	private static Map<Integer, Block> createBlocks(DNXBytecode entryBytecode, DNXFile reader) {
 		List<DNXBytecode> code = getBytecodeChunk(entryBytecode, reader);
 		Map<DNXBytecode, Integer> addressMap = new HashMap<>();
 		Map<Integer, Block> out = new HashMap<>();
@@ -162,8 +165,8 @@ public class DNXDisassembler {
 			if(blockAt != null) {
 				if(current != null) {
 					current.conditionalExit = false;
-					current.right = blockAt.right;
-					current.left = blockAt.left;
+					current.right = blockAt;
+					current.left = blockAt;
 					
 					blockAt.entryPoints.add(current);
 				}
@@ -235,7 +238,7 @@ public class DNXDisassembler {
 		return out;
 	}
 	
-	private static String convertToDigraph(Map<Integer, Block> blocks, DNXReader reader) {
+	private static String convertToDigraph(Map<Integer, Block> blocks, DNXFile reader) {
 		StringBuilder sb = new StringBuilder("digraph G {\n");
 		
 		for(Block block : blocks.values()) {

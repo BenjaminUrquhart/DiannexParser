@@ -1,11 +1,21 @@
 package net.benjaminurquhart.diannex;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public class DNXString {
+import com.google.common.io.LittleEndianDataOutputStream;
+
+public class DNXString implements IDNXSerializable {
 
 	private String value;
+	
+	public DNXString(String value) {
+		if(value == null) {
+			throw new IllegalArgumentException("Cannot create null DNXString");
+		}
+		this.value = value;
+	}
 	
 	public DNXString(ByteBuffer reader) {
 		byte[] buff = new byte[1024], tmp;
@@ -38,6 +48,11 @@ public class DNXString {
 			throw new IllegalStateException("Ran out of bytes while parsing string " + value);
 		}
 		//System.out.printf("DNXString [%s]\n", value);
+	}
+	
+	public void serialize(DNXFile reader, LittleEndianDataOutputStream buff) throws IOException {
+		buff.write(value.getBytes("utf-8"));
+		buff.write((byte)0);
 	}
 	
 	public String get() {

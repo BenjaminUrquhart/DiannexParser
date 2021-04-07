@@ -10,6 +10,5 @@ public class DNXScene extends DNXCompiled {
 		for(int i = 0; i < size; i++) {
 			bytecodeIndicies.add(reader.getInt());
 		}
-		
 	}
 }
