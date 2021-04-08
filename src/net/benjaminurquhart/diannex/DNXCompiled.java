@@ -94,7 +94,7 @@ public abstract class DNXCompiled implements IDNXSerializable {
 	}
 	
 	public BufferedImage graph(DNXFile reader) {
-		return DNXDisassembler.renderGraph(entryPoint, reader);
+		return DNXDisassembler.renderGraph(this, reader);
 	}
 	
 	public String toString() {

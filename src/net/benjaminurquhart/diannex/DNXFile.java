@@ -13,8 +13,10 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
@@ -115,7 +117,7 @@ public class DNXFile {
 			entryPoints.sort((a,b) -> bytecode.indexOf(a) - bytecode.indexOf(b));
 			
 			// Copy bytecode into objects
-			Consumer<DNXCompiled> copyBytecode = v -> v.instructions = v.entryPoint == null ? new ArrayList<>() : DNXDisassembler.getBytecodeChunk(v.entryPoint, this);
+			Consumer<DNXCompiled> copyBytecode = v -> v.instructions = v.entryPoint == null ? new ArrayList<>() : DNXDisassembler.getBytecodeChunk(v, this);
 			
 			scenes.forEach(copyBytecode);
 			functions.forEach(copyBytecode);
@@ -131,19 +133,14 @@ public class DNXFile {
 	public void write(File file) throws IOException {
 		compressed = false;
 		System.out.println("Serializing...");
-		List<DNXBytecode> flagBytecode = new ArrayList<>();
+		Set<DNXBytecode> flagBytecode = new HashSet<>();
 		
 		bytecode.clear();
 		
 		for(DNXDefinition definition : definitions) {
-			if(definition.entryPoint != null) {
-				bytecode.add(definition.entryPoint);
-			}
+			bytecode.addAll(definition.instructions);
 		}
 		for(DNXFunction function : functions) {
-			if(function.entryPoint == null) {
-				throw new IllegalStateException(function + " has no bytecode");
-			}
 			bytecode.addAll(function.instructions);
 		}
 		for(DNXScene scene : scenes) {
@@ -154,6 +151,11 @@ public class DNXFile {
 			}
 		}
 		bytecode.addAll(flagBytecode);
+		
+		Set<DNXBytecode> bytecodeSet = new HashSet<>(bytecode);
+		if(bytecodeSet.size() != bytecode.size()) {
+			throw new IllegalStateException((bytecode.size() - bytecodeSet.size()) + " duplicate bytecode elements");
+		}
 		
 		ByteArrayOutputStream rawStream = new ByteArrayOutputStream();
 		LittleEndianDataOutputStream stream = new LittleEndianDataOutputStream(rawStream);
