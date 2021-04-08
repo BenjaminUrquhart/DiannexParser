@@ -11,11 +11,16 @@ public abstract class DNXCompiled implements IDNXSerializable {
 
 	public DNXString name;
 	protected int symbolPointer;
-	protected DNXBytecode entryPoint;
 	protected List<Integer> bytecodeIndicies;
 	
 	public List<DNXBytecode> instructions;
 	public List<DNXFlag> flags;
+	
+	// Only exists for bytecode list splitting during deserialization.
+	// Do not use.
+	
+	@Deprecated
+	protected DNXBytecode entryPoint;
 	
 	private boolean processed;
 	
@@ -38,6 +43,7 @@ public abstract class DNXCompiled implements IDNXSerializable {
 			entryPoint = bytecode.get(0);
 			if(bytecode.size() > 1) {
 				if(bytecode.size() % 2 == 0) {
+					System.out.println(bytecode);
 					throw new IllegalStateException(String.format("%s %s has unpaired flags", this.getClass().getSimpleName(), name.getClean()));
 				}
 				DNXFlag flag;
@@ -54,20 +60,17 @@ public abstract class DNXCompiled implements IDNXSerializable {
 	public void serialize(DNXFile reader, LittleEndianDataOutputStream buff) throws IOException {
 		buff.writeInt(reader.getStrings().indexOf(name));
 		buff.writeShort((short)(flags.size() * 2 + 1));
-		buff.writeInt(reader.bytecode.indexOf(entryPoint));
+		buff.writeInt(instructions.isEmpty() ? -1 : reader.bytecode.indexOf(instructions.get(0)));
 		for(DNXFlag flag : flags) {
 			flag.serialize(reader, buff);
 		}
 	}
 	
 	public String disassemble(DNXFile reader) {
-		if(entryPoint == null) {
-			return name.get() + " has no bytecode entries.";
-		}
-		
 		List<String> asm = DNXDisassembler.disassemble(this, reader);
 		
-		StringBuilder sb = new StringBuilder(name.get());
+		StringBuilder sb = new StringBuilder("; ");
+		sb.append(name.get());
 		if(!flags.isEmpty()) {
 			sb.append(" (flags=[");
 			
@@ -100,7 +103,29 @@ public abstract class DNXCompiled implements IDNXSerializable {
 	}
 	
 	public String toString() {
-		int size = processed ? entryPoint == null ? 0 : flags.size() * 2 + 1 : bytecodeIndicies.size();
-		return String.format("%s %s [%d bytecode %s]", this.getClass().getSimpleName(), processed ? name.getClean() : symbolPointer, size, size == 1 ? "entry" : "entries");
+		int size;
+		if(processed) {
+			size = instructions.size();
+			return String.format(
+					"%s %s [%d %s, %d %s]", 
+					this.getClass().getSimpleName(), 
+					name.getClean(),
+					size,
+					size == 1 ? "instruction" : "instructions",
+					flags.size(),
+					flags.size() == 1 ? "flag" : "flags"
+			);
+		}
+		else {
+			size = bytecodeIndicies.size();
+			return String.format(
+					"%s %s [%d bytecode %s]", 
+					this.getClass().getSimpleName(), 
+					symbolPointer, 
+					size, 
+					size == 1 ? "entry" : "entries"
+			);
+		}
+		
 	}
 }

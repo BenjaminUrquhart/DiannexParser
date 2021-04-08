@@ -69,16 +69,8 @@ public class DNXDisassembler {
 		return entry.instructions.stream().map(b -> b.toString(reader)).collect(Collectors.toList());
 	}
 	
+	@SuppressWarnings("deprecation")
 	public static List<DNXBytecode> getBytecodeChunk(DNXCompiled entry, DNXFile reader) {
-		/*
-		if(!entry.flags.isEmpty()) {
-			System.out.println(entry + " {");
-			for(DNXFlag flag : entry.flags) {
-				System.out.println("\t" + getBytecodeChunk(flag.key, reader));
-				System.out.println("\t" + getBytecodeChunk(flag.value, reader));
-			}
-			System.out.println("}");
-		}*/
 		return getBytecodeChunk(entry.entryPoint, reader);
 	}
 	
@@ -104,13 +96,12 @@ public class DNXDisassembler {
 	}
 	
 	public static BufferedImage renderGraph(DNXCompiled entry, DNXFile reader) {
-		String digraph = convertToDigraph(createBlocks(entry, reader), reader);
-		//System.out.println(digraph);
+		String digraph = convertToDigraph(createBlocks(entry), reader);
 		return Graphviz.fromString(digraph).render(Format.PNG).toImage();
 	}
 	
-	private static Map<Integer, Block> createBlocks(DNXCompiled dnx, DNXFile reader) {
-		List<DNXBytecode> code = getBytecodeChunk(dnx, reader);
+	private static Map<Integer, Block> createBlocks(DNXCompiled dnx) {
+		List<DNXBytecode> code = dnx.instructions;
 		Map<DNXBytecode, Integer> addressMap = new HashMap<>();
 		Map<Integer, Block> out = new HashMap<>();
 		out.put(0, new Block(0));

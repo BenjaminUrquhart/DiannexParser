@@ -178,8 +178,8 @@ public class DNXBytecode implements IDNXSerializable {
 			}
 			else {
 				arg1 = parseArgInt(args[0]);
-				arg2 = parseArgInt(args[1]);
 			}
+			arg2 = parseArgInt(args[1]);
 			break;
 		case FLOAT:
 			argDouble = parseArgDouble(args[0]);

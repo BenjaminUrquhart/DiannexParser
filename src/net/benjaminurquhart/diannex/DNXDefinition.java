@@ -47,7 +47,7 @@ public class DNXDefinition extends DNXCompiled {
 		else {
 			throw new IllegalStateException("Floating reference: " + reference);
 		}
-		buff.writeInt(reader.bytecode.indexOf(entryPoint));
+		buff.writeInt(instructions.isEmpty() ? -1 : reader.bytecode.indexOf(instructions.get(0)));
 	}
 	
 	public DNXString getReference() {
@@ -55,6 +55,6 @@ public class DNXDefinition extends DNXCompiled {
 	}
 	
 	public String toString() {
-		return String.format("DNXDefinition %s [ref=%s, bytecode=%s]", name.get(), reference, entryPoint);
+		return String.format("DNXDefinition %s [ref=%s, bytecode=%s]", name.get(), reference, instructions);
 	}
 }

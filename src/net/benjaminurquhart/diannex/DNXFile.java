@@ -117,6 +117,7 @@ public class DNXFile {
 			entryPoints.sort((a,b) -> bytecode.indexOf(a) - bytecode.indexOf(b));
 			
 			// Copy bytecode into objects
+			@SuppressWarnings("deprecation")
 			Consumer<DNXCompiled> copyBytecode = v -> v.instructions = v.entryPoint == null ? new ArrayList<>() : DNXDisassembler.getBytecodeChunk(v, this);
 			
 			scenes.forEach(copyBytecode);
