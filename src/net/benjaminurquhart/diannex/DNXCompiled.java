@@ -78,10 +78,7 @@ public abstract class DNXCompiled implements IDNXSerializable {
 			int size = flags.size();
 			for(int i = 0; i < size; i++) {
 				flag = flags.get(i);
-				sb.append(reader.getStrings().get(flag.key.getFirstArg()).getClean());
-				sb.append("=");
-				sb.append(String.valueOf(flag.value.getFirstArg()));
-				
+				sb.append(flag.getPretty(reader));
 				if(i < size - 1) {
 					sb.append(", ");
 				}

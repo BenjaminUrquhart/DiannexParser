@@ -118,7 +118,13 @@ public class DNXFile {
 			
 			// Copy bytecode into objects
 			@SuppressWarnings("deprecation")
-			Consumer<DNXCompiled> copyBytecode = v -> v.instructions = v.entryPoint == null ? new ArrayList<>() : DNXDisassembler.getBytecodeChunk(v, this);
+			Consumer<DNXCompiled> copyBytecode = v -> {
+				v.instructions = v.entryPoint == null ? new ArrayList<>() : DNXDisassembler.getBytecodeChunk(v, this);
+				for(DNXFlag flag : v.flags) {
+					flag.valueBytecode = flag.value == null ? new ArrayList<>() : DNXDisassembler.getBytecodeChunk(flag.value, this);
+					flag.keyBytecode = flag.key == null ? new ArrayList<>() : DNXDisassembler.getBytecodeChunk(flag.key, this);
+				}
+			};
 			
 			scenes.forEach(copyBytecode);
 			functions.forEach(copyBytecode);
@@ -134,14 +140,6 @@ public class DNXFile {
 	public void write(File file) throws IOException {
 		compressed = false;
 		System.out.println("Serializing...");
-		List<DNXBytecode> flagBytecode = new ArrayList<>();
-		
-		for(DNXScene scene : scenes) {
-			for(DNXFlag flag : scene.flags) {
-				flagBytecode.addAll(DNXDisassembler.getBytecodeChunk(flag.key, this));
-				flagBytecode.addAll(DNXDisassembler.getBytecodeChunk(flag.value, this));
-			}
-		}
 		
 		bytecode.clear();
 		
@@ -153,9 +151,11 @@ public class DNXFile {
 		}
 		for(DNXScene scene : scenes) {
 			bytecode.addAll(scene.instructions);
+			for(DNXFlag flag : scene.flags) {
+				bytecode.addAll(flag.valueBytecode);
+				bytecode.addAll(flag.keyBytecode);
+			}
 		}
-		
-		bytecode.addAll(flagBytecode);
 		
 		Set<DNXBytecode> bytecodeSet = new HashSet<>(bytecode);
 		if(bytecodeSet.size() != bytecode.size()) {
