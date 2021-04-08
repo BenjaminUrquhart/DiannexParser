@@ -283,6 +283,7 @@ public class DNXBytecode implements IDNXSerializable {
 			break;
 		case FLOAT:
 			buff.writeDouble(argDouble);
+			break;
 		case SINGLE:
 			buff.writeInt(arg1);
 			break;

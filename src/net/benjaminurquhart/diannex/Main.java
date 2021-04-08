@@ -21,7 +21,9 @@ public class Main {
 		sc.close();
 		
 		if(testWrite) {
-			reader.write(new File("out.dxb"));
+			File file = new File("out.dxb");
+			reader.write(file);
+			//reader = new DNXFile(file);
 			return;
 		}
 		

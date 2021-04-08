@@ -133,7 +133,7 @@ public class DNXFile {
 	public void write(File file) throws IOException {
 		compressed = false;
 		System.out.println("Serializing...");
-		Set<DNXBytecode> flagBytecode = new HashSet<>();
+		List<DNXBytecode> flagBytecode = new ArrayList<>();
 		
 		bytecode.clear();
 		
@@ -195,7 +195,7 @@ public class DNXFile {
 				compressedSize += read;
 				rawStream.write(bytes, 0, read);
 				
-				System.out.println(compressedSize + " " + read);
+				//System.out.println(compressedSize + " " + read);
 			}
 			deflater.end();
 			fileStream.writeInt(compressedSize);
@@ -229,6 +229,7 @@ public class DNXFile {
 	
 	private <T extends IDNXSerializable> void writeList(LittleEndianDataOutputStream stream, List<T> list) throws IOException {
 		stream.writeInt(list.size());
+		System.out.printf("Writing list of %s with %d elements\n", list.isEmpty() ? "???" : list.get(0).getClass(), list.size());
 		for(T element : list) {
 			element.serialize(this, stream);
 			stream.flush();
