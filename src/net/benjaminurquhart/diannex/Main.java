@@ -23,9 +23,17 @@ public class Main {
 		if(testWrite) {
 			File file = new File("out.dxb");
 			reader.write(file);
-			//reader = new DNXFile(file);
-			return;
+			reader = new DNXFile(file);
+			//return;
 		}
+		/*
+		for(DNXScene scene : reader.getScenes()) {
+			if(scene.name.get().contains("ruined1")) {
+				System.out.println(scene.disassemble(reader));
+				break;
+			}
+		}*/
+		//System.exit(0);
 		
 		File folder = new File("output");
 		File scenes = new File(folder, "scenes");

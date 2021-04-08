@@ -31,17 +31,19 @@ public abstract class DNXCompiled implements IDNXSerializable {
 		for(int index : bytecodeIndicies) {
 			if(index < 0) continue;
 			entry = reader.bytecode.get(index);
+			reader.entryPoints.add(entry);
 			bytecode.add(entry);
 		}
 		if(!bytecode.isEmpty()) {
 			entryPoint = bytecode.get(0);
-			reader.entryPoints.add(entryPoint);
 			if(bytecode.size() > 1) {
 				if(bytecode.size() % 2 == 0) {
 					throw new IllegalStateException(String.format("%s %s has unpaired flags", this.getClass().getSimpleName(), name.getClean()));
 				}
+				DNXFlag flag;
 				for(int i = 1; i < bytecode.size(); i += 2) {
-					flags.add(new DNXFlag(bytecode.get(i+1), bytecode.get(i)));
+					flag = new DNXFlag(bytecode.get(i+1), bytecode.get(i));
+					flags.add(flag);
 				}
 			}
 		}

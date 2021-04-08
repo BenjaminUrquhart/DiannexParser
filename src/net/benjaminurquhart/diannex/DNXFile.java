@@ -135,6 +135,13 @@ public class DNXFile {
 		System.out.println("Serializing...");
 		List<DNXBytecode> flagBytecode = new ArrayList<>();
 		
+		for(DNXScene scene : scenes) {
+			for(DNXFlag flag : scene.flags) {
+				flagBytecode.addAll(DNXDisassembler.getBytecodeChunk(flag.key, this));
+				flagBytecode.addAll(DNXDisassembler.getBytecodeChunk(flag.value, this));
+			}
+		}
+		
 		bytecode.clear();
 		
 		for(DNXDefinition definition : definitions) {
@@ -145,11 +152,8 @@ public class DNXFile {
 		}
 		for(DNXScene scene : scenes) {
 			bytecode.addAll(scene.instructions);
-			for(DNXFlag flag : scene.flags) {
-				flagBytecode.add(flag.key);
-				flagBytecode.add(flag.value);
-			}
 		}
+		
 		bytecode.addAll(flagBytecode);
 		
 		Set<DNXBytecode> bytecodeSet = new HashSet<>(bytecode);
