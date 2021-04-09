@@ -75,6 +75,9 @@ public class DNXDisassembler {
 	}
 	
 	public static List<DNXBytecode> getBytecodeChunk(DNXBytecode entry, DNXFile reader) {
+		if(reader.ready) {
+			reader.regenerateBytecodeList();
+		}
 		int entryIndex = reader.entryPoints.indexOf(entry);
 		if(entryIndex == -1) {
 			throw new IllegalArgumentException("Provided bytecode is not an entry point");
@@ -108,8 +111,6 @@ public class DNXDisassembler {
 		Block entry = new Block(null);
 		Block exit = new Block(code.size());
 		out.put(exit.id, exit);
-		
-		
 		
 		Block current = entry;
 		

@@ -2,18 +2,30 @@ package net.benjaminurquhart.diannex;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.google.common.io.LittleEndianDataOutputStream;
 
 public class DNXDefinition extends DNXCompiled {
 
 	private int stringReference;
-	private DNXString reference;
+	public DNXString reference;
 	
 	public DNXDefinition(ByteBuffer reader) {
 		symbolPointer = reader.getInt();
 		stringReference = reader.getInt();
 		bytecodeIndicies.add(reader.getInt());
+	}
+	
+	public DNXDefinition(DNXString name, DNXString reference, List<DNXBytecode> instructions) {
+		this.instructions = instructions;
+		this.reference = reference;
+		this.name = name;
+	}
+	
+	public DNXDefinition(DNXString name, DNXString reference) {
+		this(name, reference, new ArrayList<>());
 	}
 	
 	public void postProcess(DNXFile reader) {
@@ -48,10 +60,6 @@ public class DNXDefinition extends DNXCompiled {
 			throw new IllegalStateException("Floating reference: " + reference);
 		}
 		buff.writeInt(instructions.isEmpty() ? -1 : reader.bytecode.indexOf(instructions.get(0)));
-	}
-	
-	public DNXString getReference() {
-		return reference;
 	}
 	
 	public String toString() {

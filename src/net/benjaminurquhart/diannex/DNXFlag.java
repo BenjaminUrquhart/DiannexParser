@@ -22,6 +22,11 @@ public class DNXFlag implements IDNXSerializable {
 		this.key = key;
 	}
 	
+	public DNXFlag(List<DNXBytecode> key, List<DNXBytecode> value) {
+		valueBytecode = value;
+		keyBytecode = key;
+	}
+	
 	public void serialize(DNXFile reader, LittleEndianDataOutputStream buff) throws IOException {
 		buff.writeInt(valueBytecode.isEmpty() ? -1 : reader.bytecode.indexOf(valueBytecode.get(0)));
 		buff.writeInt(keyBytecode.isEmpty() ? -1 : reader.bytecode.indexOf(keyBytecode.get(0)));

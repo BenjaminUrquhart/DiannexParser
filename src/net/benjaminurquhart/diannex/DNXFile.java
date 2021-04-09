@@ -40,6 +40,8 @@ public class DNXFile {
 	
 	private boolean compressed;
 	private boolean internalTranslationFile;
+	
+	protected boolean ready;
 
 	public DNXFile(File file) throws IOException {
 		this(Files.readAllBytes(file.toPath()));
@@ -131,29 +133,36 @@ public class DNXFile {
 			definitions.forEach(copyBytecode);
 			
 			System.out.println();
+			ready = true;
 		}
 		catch(Exception e) {
 			throw new IllegalArgumentException("Invalid DNX file", e);
 		}
 	}
 	
-	public void write(File file) throws IOException {
-		compressed = false;
-		System.out.println("Serializing...");
-		
+	public synchronized void regenerateBytecodeList() {
+		entryPoints.clear();
 		bytecode.clear();
 		
+		Consumer<List<DNXBytecode>> add = list -> {
+			if(!list.isEmpty()) {
+				entryPoints.add(list.get(0));
+			}
+			bytecode.addAll(list);
+		};
+		
 		for(DNXDefinition definition : definitions) {
-			bytecode.addAll(definition.instructions);
+			add.accept(definition.instructions);
 		}
 		for(DNXFunction function : functions) {
-			bytecode.addAll(function.instructions);
+			
+			add.accept(function.instructions);
 		}
 		for(DNXScene scene : scenes) {
-			bytecode.addAll(scene.instructions);
+			add.accept(scene.instructions);
 			for(DNXFlag flag : scene.flags) {
-				bytecode.addAll(flag.valueBytecode);
-				bytecode.addAll(flag.keyBytecode);
+				add.accept(flag.valueBytecode);
+				add.accept(flag.keyBytecode);
 			}
 		}
 		
@@ -161,6 +170,13 @@ public class DNXFile {
 		if(bytecodeSet.size() != bytecode.size()) {
 			throw new IllegalStateException((bytecode.size() - bytecodeSet.size()) + " duplicate bytecode elements");
 		}
+	}
+	
+	public void write(File file) throws IOException {
+		compressed = false;
+		System.out.println("Serializing...");
+		
+		regenerateBytecodeList();
 		
 		ByteArrayOutputStream rawStream = new ByteArrayOutputStream();
 		LittleEndianDataOutputStream stream = new LittleEndianDataOutputStream(rawStream);
