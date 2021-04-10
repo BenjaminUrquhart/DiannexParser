@@ -59,14 +59,20 @@ public class DNXDisassembler {
 		
 	}
 	
-	//private static final Set<DNXBytecode.Opcode> JUMPS = EnumSet.of(DNXBytecode.Opcode.J, DNXBytecode.Opcode.JT, DNXBytecode.Opcode.JF);
+	private static final Set<DNXBytecode.Opcode> JUMPS = EnumSet.of(
+			DNXBytecode.Opcode.CHOICESEL,
+			DNXBytecode.Opcode.CHOOSESEL,
+			DNXBytecode.Opcode.JT, 
+			DNXBytecode.Opcode.JF,
+			DNXBytecode.Opcode.J
+	);
 	private static final Set<DNXBytecode.Opcode> EXITS = EnumSet.of(DNXBytecode.Opcode.EXIT, DNXBytecode.Opcode.RET);
 	
 	public static List<String> disassemble(DNXCompiled entry, DNXFile reader) {
 		if(entry.instructions == null) {
 			entry.instructions = getBytecodeChunk(entry, reader);
 		}
-		return entry.instructions.stream().map(b -> b.toString(reader)).collect(Collectors.toList());
+		return entry.instructions.stream().map(b -> b.toString(reader) + (JUMPS.contains(b.getOpcode()) ? "\n" : "")).collect(Collectors.toList());
 	}
 	
 	@SuppressWarnings("deprecation")

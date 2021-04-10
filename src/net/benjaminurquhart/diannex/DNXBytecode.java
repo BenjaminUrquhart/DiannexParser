@@ -195,7 +195,7 @@ public class DNXBytecode implements IDNXSerializable {
 		int index;
 		if(arg instanceof DNXString) {
 			string = (DNXString)arg;
-			if(opcode == Opcode.PUSHS) {
+			if(opcode == Opcode.PUSHS || opcode == Opcode.PUSHINTS) {
 				index = reader.getTranslationStrings().indexOf(string);
 				if(index == -1) {
 					index = reader.getTranslationStrings().size();
@@ -213,7 +213,7 @@ public class DNXBytecode implements IDNXSerializable {
 		}
 		else {
 			String val = String.valueOf(arg);
-			if(opcode == Opcode.PUSHS) {
+			if(opcode == Opcode.PUSHS || opcode == Opcode.PUSHINTS) {
 				string = reader.newTranslationString(val);
 				return reader.getTranslationStrings().indexOf(string);
 			}

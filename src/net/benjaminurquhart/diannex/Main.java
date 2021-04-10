@@ -4,15 +4,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.file.Files;
-import java.util.List;
 import java.util.Scanner;
 
 import javax.imageio.ImageIO;
 
 public class Main {
 	
-	private static boolean testWrite = false, testAssembler = true;
-
 	public static void main(String[] args) throws Exception {
 		System.setErr(System.out);
 		
@@ -20,23 +17,6 @@ public class Main {
 		Scanner sc = new Scanner(System.in);
 		DNXFile reader = new DNXFile(new File(sc.nextLine()));
 		sc.close();
-		
-		if(testAssembler) {
-			// TS!Underswap - first save point
-			DNXScene target = reader.sceneByName("save.ruined1");
-			List<DNXBytecode> bytecode = DNXAssembler.assemble(Files.readString(new File("test.asm").toPath()), reader);
-			target.instructions = bytecode;
-			
-			File file = new File("out.dxb");
-			reader.write(file);
-			return;
-		}
-		
-		if(testWrite) {
-			File file = new File("out.dxb");
-			reader.write(file);
-			reader = new DNXFile(file);
-		}
 		
 		File folder = new File("output");
 		File scenes = new File(folder, "scenes");

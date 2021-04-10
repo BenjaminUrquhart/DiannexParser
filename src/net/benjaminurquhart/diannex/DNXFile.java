@@ -70,13 +70,14 @@ public class DNXFile {
 			
 			int size = reader.getInt();
 			
-			System.out.println("Input size: " + bytes.length);
-			System.out.println("Size: " + size);
+			//System.out.println("Input size: " + bytes.length);
+			//System.out.println("Size: " + size);
+			
 			if(compressed) {
 				int compressedSize = reader.getInt();
 				byte[] zlib = new byte[compressedSize];
 				bytes = new byte[size];
-				System.out.println("Compressed size: " + compressedSize);
+				//System.out.println("Compressed size: " + compressedSize);
 				reader.get(zlib);
 				
 				Inflater inflater = new Inflater(false);
@@ -132,7 +133,7 @@ public class DNXFile {
 			functions.forEach(copyBytecode);
 			definitions.forEach(copyBytecode);
 			
-			System.out.println();
+			//System.out.println();
 			ready = true;
 		}
 		catch(Exception e) {
@@ -155,7 +156,6 @@ public class DNXFile {
 			add.accept(definition.instructions);
 		}
 		for(DNXFunction function : functions) {
-			
 			add.accept(function.instructions);
 		}
 		for(DNXScene scene : scenes) {
@@ -241,7 +241,7 @@ public class DNXFile {
 		Constructor<T> constructor = clazz.getConstructor(ByteBuffer.class);
 		List<T> out = new ArrayList<>();
 		int size = reader.getInt();
-		System.out.printf("Reading list of %s with %d elements\n", clazz, size);
+		//System.out.printf("Reading list of %s with %d elements\n", clazz, size);
 		for(int i = 0; i < size; i++) {
 			out.add(constructor.newInstance(reader));
 		}
@@ -250,7 +250,7 @@ public class DNXFile {
 	
 	private <T extends IDNXSerializable> void writeList(LittleEndianDataOutputStream stream, List<T> list) throws IOException {
 		stream.writeInt(list.size());
-		System.out.printf("Writing list of %s with %d elements\n", list.isEmpty() ? "???" : list.get(0).getClass(), list.size());
+		//System.out.printf("Writing list of %s with %d elements\n", list.isEmpty() ? "???" : list.get(0).getClass(), list.size());
 		for(T element : list) {
 			element.serialize(this, stream);
 			stream.flush();
