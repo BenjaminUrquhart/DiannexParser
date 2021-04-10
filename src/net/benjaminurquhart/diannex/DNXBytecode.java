@@ -112,6 +112,8 @@ public class DNXBytecode implements IDNXSerializable {
 			Opcode.PUSHS,
 			Opcode.PUSHBS,
 			Opcode.CALLEXT,
+			Opcode.PUSHINTS,
+			Opcode.PUSHBINTS,
 			Opcode.PUSHVARGLB,
 			Opcode.SETVARGLB
 	);
@@ -337,7 +339,7 @@ public class DNXBytecode implements IDNXSerializable {
 		}
 		String str = null;
 		if(STRING_RESOLVE.contains(opcode)) {
-			str = (opcode == Opcode.PUSHS ? reader.getTranslationStrings() : reader.getStrings()).get(arg1).getClean();
+			str = (opcode == Opcode.PUSHS || opcode == Opcode.PUSHINTS ? reader.getTranslationStrings() : reader.getStrings()).get(arg1).getClean();
 		}
 		else if(opcode == Opcode.CALL) {
 			str = reader.getFunctions().get(arg1).name.getClean();
