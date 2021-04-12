@@ -1,10 +1,13 @@
 package net.benjaminurquhart.diannex;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
 import java.util.Set;
 
-public class DNXBytecode {
+import com.google.common.io.LittleEndianDataOutputStream;
+
+public class DNXBytecode implements IDNXSerializable {
 	
 	static enum Type {
 		DEFAULT,
@@ -109,6 +112,8 @@ public class DNXBytecode {
 			Opcode.PUSHS,
 			Opcode.PUSHBS,
 			Opcode.CALLEXT,
+			Opcode.PUSHINTS,
+			Opcode.PUSHBINTS,
 			Opcode.PUSHVARGLB,
 			Opcode.SETVARGLB
 	);
@@ -120,6 +125,124 @@ public class DNXBytecode {
 	
 	public DNXBytecode(ByteBuffer reader) {
 		opcode = Opcode.from(reader.get());
+		determineType();
+		switch(type) {
+		case SINGLE:
+			arg1 = reader.getInt();
+			break;
+		case DOUBLE:
+			arg1 = reader.getInt();
+			arg2 = reader.getInt();
+			break;
+		case FLOAT:
+			argDouble = reader.getDouble();
+			break;
+		default: break;
+		}
+	}
+	
+	public DNXBytecode(DNXFile reader, Opcode opcode, Object... args) {
+		this.opcode = opcode;
+		determineType();
+		
+		switch(type) {
+		case SINGLE:
+			if(STRING_RESOLVE.contains(opcode)) {
+				arg1 = parseArgString(reader, args[0]);
+			}
+			else {
+				arg1 = parseArgInt(args[0]);
+			}
+			break;
+		
+		case DOUBLE:
+			int index;
+			if(opcode == Opcode.CALL) {
+				if(args[0] instanceof DNXFunction) {
+					index = reader.getFunctions().indexOf(args[0]);
+					if(index == -1) {
+						index = reader.getFunctions().size();
+						reader.addFunction((DNXFunction)args[0]);
+					}
+				}
+				else {
+					String name = String.valueOf(args[0]);
+					DNXFunction func = reader.functionByName(name);
+					if(func == null) {
+						throw new IllegalArgumentException("Unknown function '" + name + "' - did you mean to use the CALLEXT opcode instead?");
+					}
+					index = reader.getFunctions().indexOf(func);
+				}
+				arg1 = index;
+			}
+			else if(opcode == Opcode.CALLEXT) {
+				arg1 = parseArgString(reader, args[0]);
+			}
+			else {
+				arg1 = parseArgInt(args[0]);
+			}
+			arg2 = parseArgInt(args[1]);
+			break;
+		case FLOAT:
+			argDouble = parseArgDouble(args[0]);
+			break;
+		default: break;
+		}
+	}
+	
+	private int parseArgString(DNXFile reader, Object arg) {
+		DNXString string;
+		int index;
+		if(arg instanceof DNXString) {
+			string = (DNXString)arg;
+			if(opcode == Opcode.PUSHS || opcode == Opcode.PUSHINTS) {
+				index = reader.getTranslationStrings().indexOf(string);
+				if(index == -1) {
+					index = reader.getTranslationStrings().size();
+					reader.addTranslationString(string);
+				}
+			}
+			else {
+				index = reader.getStrings().indexOf(string);
+				if(index == -1) {
+					index = reader.getStrings().size();
+					reader.addString(string);
+				}
+			}
+			return index;
+		}
+		else {
+			String val = String.valueOf(arg);
+			if(opcode == Opcode.PUSHS || opcode == Opcode.PUSHINTS) {
+				string = reader.newTranslationString(val);
+				return reader.getTranslationStrings().indexOf(string);
+			}
+			else {
+				string = reader.newString(val);
+				return reader.getStrings().indexOf(string);
+			}
+		}
+	}
+	
+	private int parseArgInt(Object arg) {
+		try {
+			return Integer.parseInt(String.valueOf(arg));
+		}
+		catch(Exception e) {
+			throw new IllegalArgumentException("Expected integer argument for opcode " + opcode + ", got " + arg + " (" + (arg == null ? null : arg.getClass().getName() + ")"));
+		}
+	}
+	
+	private double parseArgDouble(Object arg) {
+		try {
+			return Double.parseDouble(String.valueOf(arg));
+		}
+		catch(Exception e) {
+			throw new IllegalArgumentException("Expected floating-point argument for opcode " + opcode + ", got " + arg + " (" + (arg == null ? null : arg.getClass().getName() + ")"));
+		}
+	}
+	
+	private void determineType() {
 		switch(opcode) {
 		case FREELOC:
 		case PUSHI:
@@ -137,25 +260,38 @@ public class DNXBytecode {
 		case CHOOSEADD:
 		case CHOOSEADDT:
 		case MAKEARR:
-			arg1 = reader.getInt();
 			type = Type.SINGLE;
 			break;
 		case CALL:
 		case CALLEXT:
 		case PUSHINTS:
 		case PUSHBINTS:
-			arg1 = reader.getInt();
-			arg2 = reader.getInt();
 			type = Type.DOUBLE;
 			break;
 		case PUSHD:
-			argDouble = reader.getDouble();
 			type = Type.FLOAT;
 			break;
 		default: type = Type.DEFAULT;
 		}
-		
-		//System.out.println(this);
+	}
+	
+	@Override
+	public void serialize(DNXFile reader, LittleEndianDataOutputStream buff) throws IOException {
+		buff.write(opcode.value);
+		switch(type) {
+		case DOUBLE:
+			buff.writeInt(arg1);
+			buff.writeInt(arg2);
+			break;
+		case FLOAT:
+			buff.writeDouble(argDouble);
+			break;
+		case SINGLE:
+			buff.writeInt(arg1);
+			break;
+		default:
+			break;
+		}
 	}
 	
 	
@@ -182,7 +318,7 @@ public class DNXBytecode {
 	public String toString() {
 		return toString(null);
 	}
-	public String toString(DNXReader reader) {
+	public String toString(DNXFile reader) {
 		StringBuilder sb = new StringBuilder(opcode.name().toLowerCase());
 		sb.append(" ");
 		switch(type) {
@@ -196,17 +332,17 @@ public class DNXBytecode {
 		return sb.toString();
 	}
 	
-	private void appendFirst(StringBuilder sb, DNXReader reader) {
+	private void appendFirst(StringBuilder sb, DNXFile reader) {
 		if(reader == null) {
 			sb.append(arg1);
 			return;
 		}
 		String str = null;
 		if(STRING_RESOLVE.contains(opcode)) {
-			str = (opcode == Opcode.PUSHS ? reader.translations : reader.strings).get(arg1).getClean();
+			str = (opcode == Opcode.PUSHS || opcode == Opcode.PUSHINTS ? reader.getTranslationStrings() : reader.getStrings()).get(arg1).getClean();
 		}
 		else if(opcode == Opcode.CALL) {
-			str = reader.functions.get(arg1).getSymbol().getClean();
+			str = reader.getFunctions().get(arg1).name.getClean();
 		}
 		else {
 			sb.append(arg1); 

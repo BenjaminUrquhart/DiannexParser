@@ -1,69 +1,85 @@
 package net.benjaminurquhart.diannex;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
-public abstract class DNXCompiled {
+import com.google.common.io.LittleEndianDataOutputStream;
 
-	protected DNXString symbol;
+public abstract class DNXCompiled implements IDNXSerializable {
+
+	public DNXString name;
 	protected int symbolPointer;
-	protected List<DNXBytecode> bytecode;
 	protected List<Integer> bytecodeIndicies;
+	
+	public List<DNXBytecode> instructions;
+	public List<DNXFlag> flags;
+	
+	// Only exists for bytecode list splitting during deserialization.
+	// Do not use.
+	
+	@Deprecated
+	protected DNXBytecode entryPoint;
 	
 	private boolean processed;
 	
 	protected DNXCompiled() {
-		this.bytecode = new ArrayList<>();
+		this.flags = new ArrayList<>();
 		this.bytecodeIndicies = new ArrayList<>();
 	}
-
 	
-	public DNXString getSymbol() {
-		return symbol;
-	}
-	
-	public List<DNXBytecode> getBytecode() {
-		return Collections.unmodifiableList(bytecode);
-	}
-	
-	protected void postProcess(DNXReader reader) {
+	protected void postProcess(DNXFile reader) {
 		DNXBytecode entry;
-		symbol = reader.strings.get(symbolPointer);
+		List<DNXBytecode> bytecode = new ArrayList<>();
+		name = reader.getStrings().get(symbolPointer);
 		for(int index : bytecodeIndicies) {
 			if(index < 0) continue;
 			entry = reader.bytecode.get(index);
 			reader.entryPoints.add(entry);
 			bytecode.add(entry);
 		}
-		if(!bytecodeIndicies.isEmpty() && bytecodeIndicies.size() % 2 == 0) {
-			throw new IllegalStateException(String.format("%s %s has unpaired flags", this.getClass().getSimpleName(), symbol.getClean()));
+		if(!bytecode.isEmpty()) {
+			entryPoint = bytecode.get(0);
+			if(bytecode.size() > 1) {
+				if(bytecode.size() % 2 == 0) {
+					System.out.println(bytecode);
+					throw new IllegalStateException(String.format("%s %s has unpaired flags", this.getClass().getSimpleName(), name.getClean()));
+				}
+				DNXFlag flag;
+				for(int i = 1; i < bytecode.size(); i += 2) {
+					flag = new DNXFlag(bytecode.get(i+1), bytecode.get(i));
+					flags.add(flag);
+				}
+			}
 		}
 		processed = true;
 	}
 	
-	public String disassemble(DNXReader reader) {
-		if(bytecode.isEmpty()) {
-			return symbol.get() + " has no bytecode entries.";
+	@Override
+	public void serialize(DNXFile reader, LittleEndianDataOutputStream buff) throws IOException {
+		buff.writeInt(reader.getStrings().indexOf(name));
+		buff.writeShort((short)(flags.size() * 2 + 1));
+		buff.writeInt(instructions.isEmpty() ? -1 : reader.bytecode.indexOf(instructions.get(0)));
+		for(DNXFlag flag : flags) {
+			flag.serialize(reader, buff);
 		}
+	}
+	
+	public String disassemble(DNXFile reader) {
+		List<String> asm = DNXDisassembler.disassemble(this, reader);
 		
-		List<String> asm = DNXDisassembler.disassemble(bytecode.get(0), reader);
-		
-		StringBuilder sb = new StringBuilder(symbol.get());
-		int size = bytecode.size();
-		if(size > 1) {
+		StringBuilder sb = new StringBuilder("; ");
+		sb.append(name.get());
+		if(!flags.isEmpty()) {
 			sb.append(" (flags=[");
-			String flag, value;
-			for(int i = 1; i < size; i += 2) {
-				flag = reader.strings.get(bytecode.get(i + 1).getFirstArg()).getClean();
-				value = String.valueOf(bytecode.get(i).getFirstArg());
-				
-				sb.append(flag);
-				sb.append("=");
-				sb.append(value);
-				
-				if(i + 1 < size - 1) {
+			
+			DNXFlag flag;
+			int size = flags.size();
+			for(int i = 0; i < size; i++) {
+				flag = flags.get(i);
+				sb.append(flag.getPretty(reader));
+				if(i < size - 1) {
 					sb.append(", ");
 				}
 			}
@@ -79,12 +95,34 @@ public abstract class DNXCompiled {
 		return sb.toString();
 	}
 	
-	public BufferedImage graph(DNXReader reader) {
-		return DNXDisassembler.renderGraph(bytecode.get(0), reader);
+	public BufferedImage graph(DNXFile reader) {
+		return DNXDisassembler.renderGraph(this, reader);
 	}
 	
 	public String toString() {
-		int size = processed ? bytecodeIndicies.size() : bytecode.size();
-		return String.format("%s %s [%d bytecode %s]", this.getClass().getSimpleName(), symbol.getClean(), size, size == 1 ? "entry" : "entries");
+		int size;
+		if(processed) {
+			size = instructions.size();
+			return String.format(
+					"%s %s [%d %s, %d %s]", 
+					this.getClass().getSimpleName(), 
+					name.getClean(),
+					size,
+					size == 1 ? "instruction" : "instructions",
+					flags.size(),
+					flags.size() == 1 ? "flag" : "flags"
+			);
+		}
+		else {
+			size = bytecodeIndicies.size();
+			return String.format(
+					"%s %s [%d bytecode %s]", 
+					this.getClass().getSimpleName(), 
+					symbolPointer, 
+					size, 
+					size == 1 ? "entry" : "entries"
+			);
+		}
+		
 	}
 }
