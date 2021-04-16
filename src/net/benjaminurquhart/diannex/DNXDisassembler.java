@@ -21,7 +21,7 @@ import net.benjaminurquhart.diannex.DNXBytecode.Opcode;
 // https://github.com/krzys-h/UndertaleModTool/blob/master/UndertaleModLib/Decompiler/Decompiler.cs
 public class DNXDisassembler {
 	
-	private static class Block {
+	public static class Block {
 		
 		public Integer id;
 		public Block left, right;
@@ -109,7 +109,7 @@ public class DNXDisassembler {
 		return Graphviz.fromString(digraph).render(Format.PNG).toImage();
 	}
 	
-	private static Map<Integer, Block> createBlocks(DNXCompiled dnx) {
+	public static Map<Integer, Block> createBlocks(DNXCompiled dnx) {
 		List<DNXBytecode> code = dnx.instructions;
 		Map<DNXBytecode, Integer> addressMap = new HashMap<>();
 		Map<Integer, Block> out = new HashMap<>();

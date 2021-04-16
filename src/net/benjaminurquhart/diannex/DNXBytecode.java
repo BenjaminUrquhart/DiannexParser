@@ -9,14 +9,14 @@ import com.google.common.io.LittleEndianDataOutputStream;
 
 public class DNXBytecode implements IDNXSerializable {
 	
-	static enum Type {
+	public static enum Type {
 		DEFAULT,
 		SINGLE,
 		DOUBLE,
 		FLOAT;
 	}
 	
-	static enum Opcode {
+	public static enum Opcode {
 		NOP(0x00),
 		
 		FREELOC(0x0A),
@@ -323,21 +323,24 @@ public class DNXBytecode implements IDNXSerializable {
 		sb.append(" ");
 		switch(type) {
 		case SINGLE: 
-			appendFirst(sb, reader);
+			sb.append(parseFirst(reader));
 			break;
-		case DOUBLE: appendFirst(sb, reader); sb.append(" "); sb.append(arg2); break;
+		case DOUBLE: sb.append(parseFirst(reader)); sb.append(" "); sb.append(arg2); break;
 		case FLOAT: sb.append(argDouble); break;
 		default: break;
 		}
 		return sb.toString();
 	}
 	
-	private void appendFirst(StringBuilder sb, DNXFile reader) {
+	public String parseFirst(DNXFile reader) {
+		return parseFirst(reader, true);
+	}
+	
+	public String parseFirst(DNXFile reader, boolean quote) {
 		if(reader == null) {
-			sb.append(arg1);
-			return;
+			return String.valueOf(arg1);
 		}
-		String str = null;
+		String str = "<unknown string>";
 		if(STRING_RESOLVE.contains(opcode)) {
 			str = (opcode == Opcode.PUSHS || opcode == Opcode.PUSHINTS ? reader.getTranslationStrings() : reader.getStrings()).get(arg1).getClean();
 		}
@@ -345,17 +348,11 @@ public class DNXBytecode implements IDNXSerializable {
 			str = reader.getFunctions().get(arg1).name.getClean();
 		}
 		else {
-			sb.append(arg1); 
+			return String.valueOf(arg1);
 		}
-		if(str != null) {
-			if(opcode.name().endsWith("S")) {
-				sb.append('"');
-				sb.append(str);
-				sb.append('"');
-			}
-			else {
-				sb.append(str);
-			}
+		if(quote && opcode.name().endsWith("S")) {
+			return '"' + str + '"';
 		}
+		return str;
 	}
 }

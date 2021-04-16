@@ -1,52 +1,58 @@
 package net.benjaminurquhart.diannex;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.nio.file.Files;
-import java.util.Scanner;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
-import javax.imageio.ImageIO;
+import net.benjaminurquhart.diannex.runtime.ANSI;
+import net.benjaminurquhart.diannex.runtime.DNXRuntime;
+import net.benjaminurquhart.diannex.runtime.ExternalDNXFunction;
+import net.benjaminurquhart.diannex.runtime.ExternalFunction;
 
 public class Main {
 	
+	public static class TestFunctions {
+		
+		private static Map<String, Integer> flags = new HashMap<>(), persistFlags = new HashMap<>();
+		
+		@ExternalDNXFunction
+		public static void setFlag(String flag, int val) {
+			flags.put(flag, val);
+		}
+		
+		@ExternalDNXFunction
+		public static int getFlag(String flag) {
+			return flags.computeIfAbsent(flag, f -> 0);
+		}
+		
+		@ExternalDNXFunction
+		public static void setPersistFlag(String flag, int val) {
+			persistFlags.put(flag, val);
+		}
+		
+		@ExternalDNXFunction
+		public static int getPersistFlag(String flag) {
+			return persistFlags.computeIfAbsent(flag, f -> 0);
+		}
+	}
+
+	
 	public static void main(String[] args) throws Exception {
 		System.setErr(System.out);
+		System.out.print(ANSI.RESET);
 		
-		System.out.print("DXB Location: ");
-		Scanner sc = new Scanner(System.in);
-		DNXFile reader = new DNXFile(new File(sc.nextLine()));
-		sc.close();
+		DNXFile file = new DNXFile(new File("tsus-1.00/data/game_orig.dxb"));
 		
-		File folder = new File("output");
-		File scenes = new File(folder, "scenes");
-		File functions = new File(folder, "functions");
-		File definitions = new File(folder, "definitions");
-		for(DNXScene scene : reader.getScenes()) {
-			writeDisassembly(scene, reader, scenes);
-			writeGraph(scene, reader, scenes);
-		}
-		for(DNXFunction function : reader.getFunctions()) {
-			writeDisassembly(function, reader, functions);
-			writeGraph(function, reader, functions);
-		}
-		for(DNXDefinition definition : reader.getDefinitions()) {
-			if(!definition.instructions.isEmpty()) {
-				writeDisassembly(definition, reader, definitions);
-				writeGraph(definition, reader, definitions);
-			}
-		}
-	}
-	
-	private static void writeDisassembly(DNXCompiled entry, DNXFile reader, File outFolder) throws UnsupportedEncodingException, IOException {
-		outFolder.mkdirs();
-		System.out.println(entry);
-		Files.write(new File(outFolder, entry.name.getClean() + ".asm").toPath(), entry.disassemble(reader).getBytes("utf-8"));
-	}
-	
-	private static void writeGraph(DNXCompiled entry, DNXFile reader, File outFolder) throws IOException {
-		outFolder = new File(outFolder, "graphs");
-		outFolder.mkdirs();
-		ImageIO.write(entry.graph(reader), "png", new File(outFolder, entry.name.getClean() + ".png"));
+		DNXRuntime runtime = new DNXRuntime(file);
+		runtime.getContext().registerExternalFunctions(ExternalFunction.getFrom(TestFunctions.class));
+		
+		runtime.getContext().setMissingExternalFunctionHandler((name, arguments) -> {
+			System.out.printf("%sFunction stub: %s(args=%s)%s\n", ANSI.GRAY, name, Arrays.deepToString(arguments), ANSI.RESET);
+			return 0;
+		});
+		
+		System.out.println("Return value: " + runtime.eval(file.sceneByName("tem.battle")));
 	}
 }
+

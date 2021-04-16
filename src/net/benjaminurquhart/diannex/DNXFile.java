@@ -42,6 +42,23 @@ public class DNXFile {
 	private boolean internalTranslationFile;
 	
 	protected boolean ready;
+	
+	public DNXFile() {
+		scenes = new ArrayList<>();
+		strings = new ArrayList<>();
+		bytecode = new ArrayList<>();
+		functions = new ArrayList<>();
+		definitions = new ArrayList<>();
+		translations = new ArrayList<>();
+		
+		sceneMap = new HashMap<>();
+		functionMap = new HashMap<>();
+		definitionMap = new HashMap<>();
+		
+		entryPoints = new ArrayList<>();
+		
+		ready = true;
+	}
 
 	public DNXFile(File file) throws IOException {
 		this(Files.readAllBytes(file.toPath()));
