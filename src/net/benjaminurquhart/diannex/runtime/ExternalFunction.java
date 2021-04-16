@@ -3,6 +3,7 @@ package net.benjaminurquhart.diannex.runtime;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -65,6 +66,8 @@ public class ExternalFunction {
 	private Method function;
 	private String name;
 	
+	private boolean takesContext;
+	
 	protected ExternalFunction() {
 		this.name = "unnamedFunction" + hashCode();
 	}
@@ -101,6 +104,7 @@ public class ExternalFunction {
 		this.callingInstance = object;
 		this.function = method;
 		
+		this.takesContext = method.getParameterCount() > 0 && method.getParameterTypes()[0] == RuntimeContext.class;
 		this.name = method.getName();
 		
 		if(!method.canAccess(object)) {
@@ -130,14 +134,22 @@ public class ExternalFunction {
 		if(lambdaFunction != null) {
 			return new Class<?>[]{ Object.class };
 		}
-		return function.getParameterTypes();
+		Class<?>[] out = function.getParameterTypes();
+		if(takesContext) {
+			return Arrays.copyOfRange(out, 1, out.length);
+		}
+		return out;
 	}
 	
 	public int getArgumentCount() {
 		if(lambdaFunction != null) {
 			return 1;
 		}
-		return function.getParameterCount();
+		return function.getParameterCount() - (takesContext ? 1 : 0);
+	}
+	
+	public boolean takesContext() {
+		return takesContext;
 	}
 	
 	public String getName() {

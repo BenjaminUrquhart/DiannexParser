@@ -9,6 +9,8 @@ import net.benjaminurquhart.diannex.runtime.ANSI;
 import net.benjaminurquhart.diannex.runtime.DNXRuntime;
 import net.benjaminurquhart.diannex.runtime.ExternalDNXFunction;
 import net.benjaminurquhart.diannex.runtime.ExternalFunction;
+import net.benjaminurquhart.diannex.runtime.RuntimeContext;
+import net.benjaminurquhart.diannex.runtime.Value;
 
 public class Main {
 	
@@ -34,6 +36,16 @@ public class Main {
 		@ExternalDNXFunction
 		public static int getPersistFlag(String flag) {
 			return persistFlags.computeIfAbsent(flag, f -> 0);
+		}
+		
+		@ExternalDNXFunction("_temDoAttack")
+		public static void temDoAttack(RuntimeContext context) {
+			Value attackDodgeVal = context.globalVars.get("temp_attackDodgeValue");
+			Value attackHit = context.globalVars.get("temp_attackHit");
+			
+			// Get hit by second bullet
+			attackDodgeVal.update(attackDodgeVal.get(int.class) + 1);
+			attackHit.update(attackHit.get(int.class) + 1);
 		}
 	}
 

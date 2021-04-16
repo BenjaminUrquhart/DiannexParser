@@ -78,7 +78,20 @@ public class RuntimeContext {
 			throw new IllegalArgumentException("Bad argument count for external function " + name + "; expected " + function.getArgumentCount() + ", got " + argc);
 		}
 		
-		return function.execute(args);
+		if(function.takesContext()) {
+			Object[] newArgs = new Object[argc + 1];
+			newArgs[0] = this;
+			System.arraycopy(args, 0, newArgs, 1, args.length);
+			args = newArgs;
+		}
+		try {
+			return function.execute(args);
+		}
+		catch(RuntimeException e) {
+			System.err.println("Exception while executing external function");
+			System.err.printf("Call: %s(%s)\n", name, Arrays.deepToString(args));
+			throw e;
+		}
 	}
 	
 	public void registerExternalFunctions(Collection<ExternalFunction> functions) {
