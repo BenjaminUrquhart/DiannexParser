@@ -342,6 +342,7 @@ public class DNXRuntime {
 			// TODO: limit how far functions can see down the stack
 			Map<Integer, Value> oldLocalVars = context.localVars;
 			context.localVars = new HashMap<>();
+			context.stack = new ValueStack();
 			
 			for(int i = 0; i < inst.getSecondArg(); i++) {
 				context.setLocal(i, stack.pop());
@@ -350,6 +351,7 @@ public class DNXRuntime {
 			context.depth++;
 			stack.push(eval(context.file.functionByName(inst.parseFirst(context.file, false))));
 			context.localVars = oldLocalVars;
+			context.stack = stack;
 			context.ptr = ptr;
 			context.depth--;
 			break;
