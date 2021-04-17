@@ -32,8 +32,10 @@ public class ValueStack extends Stack<Value> {
 	
 	@Override
 	public Value push(Value value) {
-		
-		if(provider.isInUse(value)) {
+		if(value == null) {
+			value = new Value(null);
+		}
+		else if(provider.isInUse(value)) {
 			value = new Value(value.get());
 		}
 		

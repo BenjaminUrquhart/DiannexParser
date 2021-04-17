@@ -1,11 +1,14 @@
 package net.benjaminurquhart.diannex.runtime;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
 import net.benjaminurquhart.diannex.DNXFile;
@@ -16,23 +19,49 @@ public class RuntimeContext {
 		throw new IllegalArgumentException("Undefined external function: " + name);
 	};
 	
+	private static final BiConsumer<RuntimeContext, String> defaultTextrunHandler = (context, text) -> {
+		System.out.printf("[%s] %s", context.typer, text);
+		if(context.choiceBeg) {
+			System.out.println();
+			return;
+		}
+		try {
+			while(System.in.available() == 0) {
+				Thread.sleep(10);
+			}
+			while(System.in.available() > 0) {
+				System.in.read();
+			}
+		}
+		catch(Exception e) {
+			System.out.println(e);
+		}
+	};
+	
 	private BiFunction<String, Object[], ?> missingFunctionHandler = defaultMissingFunctionHandler;
 	private Map<String, ExternalFunction> externalFunctions = new HashMap<>();
 	
-	protected String typer = "Narrator";
+	protected BiConsumer<RuntimeContext, String> textrunHandler = defaultTextrunHandler;
+	
+	private boolean autodefineGlobals, headless;
+	private String typer = "Narrator";
 	
 	public Map<Integer, Value> localVars = new HashMap<>();
 	public Map<String, Value> globalVars = new HashMap<>();
 	public ValueProvider provider = new ValueProvider();
+	public Value saveRegister;
 	
 	public ValueStack stack = new ValueStack(provider);
 	public Value[] working = new Value[3];
 	public DNXFile file;
 	
+	protected List<String> prevInstructions = new ArrayList<>();
+	
+	protected List<Choice> choices;
 	protected Choicer choicer;
 	
 	protected boolean choiceBeg, didTextRun, choiced;
-	protected int ptr;
+	protected int ptr, depth;
 	
 	public RuntimeContext(DNXFile file) {
 		registerExternalFunctions(ExternalFunction.getFrom(this));
@@ -121,6 +150,115 @@ public class RuntimeContext {
 		return new HashSet<>(externalFunctions.values());
 	}
 	
+	public boolean autodefineGlobals(boolean state) {
+		return autodefineGlobals = state;
+	}
+	
+	public void makeHeadless() {
+		this.headless = true;
+		this.autodefineGlobals = true;
+		this.textrunHandler = (ctx, text) -> {};
+		this.missingFunctionHandler = (name, args) -> { return 0; };
+	}
+	
+	public boolean isHeadless() {
+		return headless;
+	}
+	
+	public void setTextrunHandler(BiConsumer<RuntimeContext, String> handler) {
+		if(handler == null) {
+			textrunHandler = defaultTextrunHandler;
+		}
+		else {
+			textrunHandler = handler;
+		}
+	}
+	public Value getGlobal(String name) {
+		if(!globalVars.containsKey(name)) {
+			if(autodefineGlobals) {
+				System.out.printf("%sAutodefining globalvar %s as 0%s\n", ANSI.GRAY, name, ANSI.RESET);
+				setGlobal(name, 0);
+			}
+			else {
+				throw new IllegalStateException("Unknown global var: " + name);
+			}
+		}
+		return globalVars.get(name);
+	}
+	
+	public <T> T getGlobal(String name, Class<T> type) {
+		return getGlobal(name).get(type);
+	}
+	
+	public void setGlobal(String name, Object value) {
+		setVar(globalVars, name, value);
+	}
+	
+	public Value getLocal(int index) {
+		if(!localVars.containsKey(index)) {
+			throw new IllegalStateException("Unknown local var: " + index);
+		}
+		return localVars.get(index);
+	}
+	
+	public <T> T getLocal(int index, Class<T> type) {
+		return getLocal(index).get(type);
+	}
+	
+	public void setLocal(int index, Object value) {
+		setVar(localVars, index, value);
+	}
+	
+	public void freeLocal(int index) {
+		if(!localVars.containsKey(index)) {
+			throw new IllegalStateException("Unknown local var: " + index);
+		}
+		localVars.remove(index);
+	}
+	
+	private <T> void setVar(Map<T, Value> map, T key, Object value) {
+		if(map.containsKey(key)) {
+			if(value instanceof Value) {
+				value = ((Value)value).get();
+			}
+			map.get(key).update(value);
+		}
+		else {
+			map.put(key, provider.get(value));
+		}
+	}
+	
+	protected void setTyper(String typer) {
+		this.typer = typer;
+	}
+	
+	public String getTyper() {
+		return typer;
+	}
+	
+	public void clearChoiceState() {
+		if(choices != null) {
+			choices.clear();
+		}
+		didTextRun = false;
+		choiceBeg = false;
+		choiced = false;
+		choicer = null;
+	}
+	
+	public void reset() {
+		prevInstructions.clear();
+		saveRegister = null;
+		typer = "Narrator";
+		localVars.clear();
+		stack.clear();
+		depth = 0;
+		ptr = 0;
+		
+		this.clearChoiceState();
+		this.reclaim();
+	}
+	
 	public void populate(int num) {
 		if(num > working.length) {
 			throw new IllegalArgumentException("expected at most " + working.length + ", got " + num);
@@ -137,5 +275,10 @@ public class RuntimeContext {
 			}
 			working[i] = null;
 		}
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("RuntimeContext %08x [%d global vars, %d local vars, %d external functions]", hashCode(), globalVars.size(), localVars.size(), externalFunctions.size());
 	}
 }

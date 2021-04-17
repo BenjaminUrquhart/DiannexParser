@@ -12,8 +12,7 @@ public class Choicer {
 		choices.add(new Choice(choice, percentage, jump));
 	}
 	
-	@SuppressWarnings("resource")
-	public Choice getChoice() {
+	protected List<Choice> processChoices() {
 		List<Choice> choices = new ArrayList<>();
 		
 		for(Choice choice : this.choices) {
@@ -25,8 +24,15 @@ public class Choicer {
 		if(choices.isEmpty()) {
 			// Reroll in the easiest way possible
 			// Hopefully we don't destroy the stack
-			return getChoice();
+			return processChoices();
 		}
+		return choices;
+	}
+	
+	@SuppressWarnings("resource")
+	public Choice getChoice() {
+		List<Choice> choices = processChoices();
+		
 		System.out.println("Options: ");
 		for(int i = 0; i < choices.size(); i++) {
 			System.out.println(i + ": " + choices.get(i));

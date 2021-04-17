@@ -1,5 +1,7 @@
 package net.benjaminurquhart.diannex.runtime;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -40,25 +42,32 @@ public class DNXRuntime {
 	}
 	
 	public Value eval(DNXCompiled entry) {
+		int offset = context.localVars.size();
 		for(int i = 0; i < entry.flags.size(); i++) {
-			context.localVars.put(i, eval(entry.flags.get(i).keyBytecode));
-			System.out.printf("%s%s (%s) -> %s%s\n", ANSI.GRAY, eval(entry.flags.get(i).valueBytecode), i, context.localVars.get(i), ANSI.RESET);
+			context.setLocal(i + offset, eval(entry.flags.get(i).valueBytecode));
+		}
+		if(!context.localVars.isEmpty()) {
+			System.out.printf("%sLocals: %s%s\n", ANSI.GRAY, context.localVars, ANSI.RESET);
 		}
 		return eval(entry.instructions);
 	}
 	
 	public Value eval(List<DNXBytecode> instructions) {
-		Map<Integer, Value> oldLocalVars = context.localVars;
-		context.localVars = new HashMap<>();
-		
 		DNXBytecode[] insts = instructions.toArray(DNXBytecode[]::new);
 		DNXBytecode inst;
 		
-		String stackStr = null;
+		String stackStr = null, instStr;
 		
 		for(int ptr = 0; ptr < insts.length; ptr++) {
 			context.ptr = ptr;
 			inst = insts[ptr];
+			
+			instStr = ">".repeat(context.depth) + " " + ptr + ": " + inst.toString(context.file);
+			
+			context.prevInstructions.add(instStr);
+			while(context.prevInstructions.size() > 10) {
+				context.prevInstructions.remove(0);
+			}
 			
 			//System.out.println(inst.toString(context.file));
 			
@@ -66,20 +75,26 @@ public class DNXRuntime {
 				break;
 			}
 			stackStr = context.stack.toString();
+			//System.out.println(instStr + " " + stackStr);
 			try {
 				if(evalSingle(inst)) {
 					ptr += inst.getFirstArg() - 1;
 				}
 				else if(context.choiced) {
-					context.didTextRun = false;
-					context.choiceBeg = false;
-					context.choiced = false;
-					context.choicer = null;
+					context.clearChoiceState();
 					ptr = context.ptr - 1;
 				}
 			}
 			catch(Throwable e) {
+				System.out.flush();
+				System.err.flush();
 				System.err.println("Execution error at instruction " + ptr + ": " + inst.toString(context.file));
+				if(context.prevInstructions.size() > 1) {
+					System.err.println("Last " + context.prevInstructions.size() + " instructions:");
+					for(String prev : context.prevInstructions) {
+						System.err.println(prev);
+					}
+				}
 				System.err.println("Stack: " + stackStr);
 				
 				if(e instanceof RuntimeException) {
@@ -87,12 +102,9 @@ public class DNXRuntime {
 				}
 				throw new RuntimeException(e);
 			}
-
-			
 			//System.out.println(context.stack);
 		}
-		context.localVars = oldLocalVars;
-		return context.stack.isEmpty() ? null : context.stack.pop();
+		return context.stack.isEmpty() ? null : context.stack.peek();
 	}
 	
 	private boolean evalSingle(DNXBytecode inst) {
@@ -104,6 +116,8 @@ public class DNXRuntime {
 				throw new IllegalStateException("Cannot execute textrun more than once in choice mode");
 			}
 		}
+		
+		int ptr = context.ptr;
 		
 		ValueStack stack = context.stack;
 		Value[] working = context.working;
@@ -143,25 +157,16 @@ public class DNXRuntime {
 			break;
 		
 		case SETVARGLB:
-			context.globalVars.put(inst.parseFirst(context.file, false), stack.pop());
+			context.setGlobal(inst.parseFirst(context.file, false), stack.pop());
 			break;
 		case SETVARLOC:
-			//System.out.printf("%sset localvar %s = %s%s\n", ANSI.GRAY, inst.getFirstArg(), stack.peek(), ANSI.RESET);
-			context.localVars.put(inst.getFirstArg(), stack.pop());
+			context.setLocal(inst.getFirstArg(), stack.pop());
 			break;
 		case PUSHVARLOC:
-			if(!context.localVars.containsKey(inst.getFirstArg())) {
-				throw new IllegalStateException("Unknown local var: " + inst.getFirstArg());
-			}
-			stack.pushObj(context.localVars.get(inst.getFirstArg()));
-			//System.out.printf("%sget localvar %s -> %s%s\n", ANSI.GRAY, inst.getFirstArg(), stack.peek(), ANSI.RESET);
+			stack.pushObj(context.getLocal(inst.getFirstArg()));
 			break;
 		case PUSHVARGLB:
-			String varname = inst.parseFirst(context.file, false);
-			if(!context.globalVars.containsKey(varname)) {
-				throw new IllegalStateException("Unknown global var: " + varname);
-			}
-			stack.pushObj(context.globalVars.get(varname));
+			stack.pushObj(context.getGlobal(inst.parseFirst(context.file, false)));
 			break;
 			
 		case CHOICEBEG:
@@ -172,18 +177,51 @@ public class DNXRuntime {
 			
 		case CHOICEADD:
 			context.populate(2);
-			context.choicer.addChoice(working[0].get(String.class), working[1].get(double.class), context.ptr + inst.getFirstArg());
+			context.choicer.addChoice(working[0].get(String.class), working[1].get(double.class), ptr + inst.getFirstArg());
 			break;
 		case CHOICEADDT:
 			context.populate(3);
 			if(working[2].get(boolean.class)) {
-				context.choicer.addChoice(working[0].get(String.class), working[1].get(double.class), context.ptr + inst.getFirstArg());
+				context.choicer.addChoice(working[1].get(String.class), working[0].get(double.class), ptr + inst.getFirstArg());
 			}
 			break;
 		case CHOICESEL:
-			context.ptr = context.choicer.getChoice().jump;
+			context.ptr = context.isHeadless() ? context.choicer.processChoices().get(0).jump : context.choicer.getChoice().jump;
 			context.choiced = true;
 			break;
+			
+		case CHOOSEADD:
+			if(context.choices == null) {
+				context.choices = new ArrayList<>();
+			}
+			else {
+				context.choices.clear();
+			}
+			context.choices.add(new Choice("-", stack.pop(double.class), ptr + inst.getFirstArg()));
+			break;
+		case CHOOSEADDT:
+			context.populate(2);
+			if(working[1].get(boolean.class)) {
+				context.choices.add(new Choice("-", working[0].get(double.class), ptr + inst.getFirstArg()));
+			}
+			break;
+		case CHOOSESEL:
+			double totalWeight = 0, rand = Math.random(), prev = 0;
+			for(Choice choice : context.choices) {
+				totalWeight += choice.chance;
+			}
+			for(Choice choice : context.choices) {
+				choice.chance /= totalWeight;
+			}
+			Collections.shuffle(context.choices);
+			for(Choice choice : context.choices) {
+				if(rand > prev && rand <= prev + choice.chance) {
+					context.ptr = choice.jump;
+					context.choiced = true;
+					return false;
+				}
+			}
+			throw new IllegalStateException("Failed to choicesel! No option was selected.");
 		case POP:
 			stack.pop();
 			break;
@@ -294,25 +332,47 @@ public class DNXRuntime {
 			break;
 		
 		case TEXTRUN:
-			doTextRun();
+			context.textrunHandler.accept(context, stack.pop(String.class));
 			if(context.choiceBeg) {
 				context.didTextRun = true;
 			}
 			break;
 			
 		case CALL:
-			// TODO: limit how far functions can see down the stack so they only see their own arguments
-			stack.push(eval(context.file.functionByName(inst.parseFirst(context.file, false)).instructions));
+			// TODO: limit how far functions can see down the stack
+			Map<Integer, Value> oldLocalVars = context.localVars;
+			context.localVars = new HashMap<>();
+			
+			for(int i = 0; i < inst.getSecondArg(); i++) {
+				context.setLocal(i, stack.pop());
+			}
+			
+			context.depth++;
+			stack.push(eval(context.file.functionByName(inst.parseFirst(context.file, false))));
+			context.localVars = oldLocalVars;
+			context.ptr = ptr;
+			context.depth--;
 			break;
 		case CALLEXT:
+			context.depth++;
 			stack.push(context.callExternal(inst.parseFirst(context.file, false), inst.getSecondArg()));
+			context.ptr = ptr;
+			context.depth--;
 			break;
 			
 		case FREELOC:
-			if(!context.localVars.containsKey(inst.getFirstArg())) {
-				throw new IllegalStateException("Unknown local var: " + inst.getFirstArg());
+			context.freeLocal(inst.getFirstArg());
+			break;
+			
+		case SAVE:
+			context.saveRegister = stack.peek();
+			break;
+		case LOAD:
+			if(context.saveRegister == null) {
+				throw new IllegalStateException("Cannot load a value without saving it");
 			}
-			context.localVars.remove(inst.getFirstArg());
+			stack.push(context.saveRegister);
+			context.saveRegister = null;
 			break;
 			
 		default:
@@ -328,24 +388,5 @@ public class DNXRuntime {
 			str = str.replace("${" + i + "}", context.stack.pop(String.class));
 		}
 		return str;
-	}
-	
-	private void doTextRun() {
-		System.out.printf("[%s] %s", context.typer, context.stack.pop(String.class));
-		if(context.choiceBeg) {
-			System.out.println();
-			return;
-		}
-		try {
-			while(System.in.available() == 0) {
-				Thread.sleep(10);
-			}
-			while(System.in.available() > 0) {
-				System.in.read();
-			}
-		}
-		catch(Exception e) {
-			System.out.println(e);
-		}
 	}
 }
