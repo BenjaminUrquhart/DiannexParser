@@ -34,7 +34,7 @@ public class DNXRuntime {
 	private RuntimeContext context;
 	
 	public DNXRuntime(DNXFile file) {
-		this.context = new RuntimeContext(file);
+		this.context = new RuntimeContext(this, file);
 	}
 	
 	public RuntimeContext getContext() {
@@ -53,6 +53,9 @@ public class DNXRuntime {
 	}
 	
 	public Value eval(List<DNXBytecode> instructions) {
+		if(context.runtime != this) {
+			throw new IllegalStateException("Current context is not bound to this runtime");
+		}
 		DNXBytecode[] insts = instructions.toArray(DNXBytecode[]::new);
 		DNXBytecode inst;
 		
@@ -69,13 +72,15 @@ public class DNXRuntime {
 				context.prevInstructions.remove(0);
 			}
 			
-			//System.out.println(inst.toString(context.file));
-			
 			if(inst.getOpcode() == Opcode.RET || inst.getOpcode() == Opcode.EXIT) {
 				break;
 			}
 			stackStr = context.stack.toString();
-			//System.out.println(instStr + " " + stackStr);
+			
+			if(context.isVerbose()) {
+				System.out.println(instStr + " " + stackStr);
+			}
+			
 			try {
 				if(evalSingle(inst)) {
 					ptr += inst.getFirstArg() - 1;
@@ -148,12 +153,12 @@ public class DNXRuntime {
 			break;
 		case PUSHARRIND:
 			context.populate(2);
-			stack.pushObj(working[1].get(Object[].class)[working[0].get(int.class)]);
+			stack.pushObj(working[0].get(Object[].class)[working[1].get(int.class)]);
 			break;
 		case SETARRIND:
 			context.populate(3);
-			working[1].get(Object[].class)[working[0].get(int.class)] = working[2].get();
-			stack.pushObj(working[1]);
+			working[0].get(Object[].class)[working[1].get(int.class)] = working[2].get();
+			stack.pushObj(working[0]);
 			break;
 		
 		case SETVARGLB:

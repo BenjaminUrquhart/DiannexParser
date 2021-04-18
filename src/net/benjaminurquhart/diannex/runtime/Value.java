@@ -30,7 +30,10 @@ public class Value {
 		if(obj instanceof Boolean) {
 			value = ((boolean)obj) ? 1 : 0;
 		}
-		else {
+		else if(obj != null && obj.getClass().isArray() && !Object[].class.isInstance(obj)) {
+			throw new IllegalArgumentException("Primative arrays are not supported");
+		}
+ 		else {
 			value = obj;
 		}
 	}
@@ -70,6 +73,17 @@ public class Value {
 		}
 		if(clazz == Object.class) {
 			return (T)value;
+		}
+		if(clazz.isArray()) {
+			if(value.getClass().isArray()) {
+				if(clazz.isInstance(value)) {
+					return (T)value;
+				}
+				throw new ClassCastException("Cannot cast to an array of primative type");
+			}
+			else {
+				throw new IllegalStateException("Attempting to read non-array as array");
+			}
 		}
 		if(clazz == boolean.class || clazz == Boolean.class) {
 			return (T)(Boolean.valueOf(value != null && get(int.class) > 0));

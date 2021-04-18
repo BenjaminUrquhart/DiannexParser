@@ -25,6 +25,10 @@ public class RuntimeContext {
 			System.out.println();
 			return;
 		}
+		waitForInput();
+	};
+	
+	public static void waitForInput() {
 		try {
 			while(System.in.available() == 0) {
 				Thread.sleep(10);
@@ -34,22 +38,24 @@ public class RuntimeContext {
 			}
 		}
 		catch(Exception e) {
-			System.out.println(e);
+			e.printStackTrace();
 		}
-	};
+	}
 	
 	private BiFunction<String, Object[], ?> missingFunctionHandler = defaultMissingFunctionHandler;
 	private Map<String, ExternalFunction> externalFunctions = new HashMap<>();
 	
 	protected BiConsumer<RuntimeContext, String> textrunHandler = defaultTextrunHandler;
 	
-	private boolean autodefineGlobals, headless;
+	private boolean autodefineGlobals, headless, verbose;
 	private String typer = "Narrator";
 	
 	public Map<Integer, Value> localVars = new HashMap<>();
 	public Map<String, Value> globalVars = new HashMap<>();
 	public ValueProvider provider = new ValueProvider();
 	public Value saveRegister;
+	
+	public final DNXRuntime runtime;
 	
 	public ValueStack stack = new ValueStack(provider);
 	public Value[] working = new Value[3];
@@ -63,11 +69,12 @@ public class RuntimeContext {
 	protected boolean choiceBeg, didTextRun, choiced;
 	protected int ptr, depth;
 	
-	public RuntimeContext(DNXFile file) {
+	public RuntimeContext(DNXRuntime runtime, DNXFile file) {
 		registerExternalFunctions(ExternalFunction.getFrom(this));
+		this.runtime = runtime;
 		this.file = file;
 	}
-	
+
 	@ExternalDNXFunction("char")
 	protected void charImpl(String typer) {
 		this.typer = typer;
@@ -165,6 +172,18 @@ public class RuntimeContext {
 		return headless;
 	}
 	
+	public boolean setVerbose(boolean verbose) {
+		return this.verbose = verbose;
+	}
+	
+	public boolean isVerbose() {
+		return verbose;
+	}
+	
+	public boolean isChoicing() {
+		return choiceBeg;
+	}
+	
 	public void setTextrunHandler(BiConsumer<RuntimeContext, String> handler) {
 		if(handler == null) {
 			textrunHandler = defaultTextrunHandler;
@@ -214,6 +233,14 @@ public class RuntimeContext {
 			throw new IllegalStateException("Unknown local var: " + index);
 		}
 		localVars.remove(index);
+	}
+	
+	public Set<String> getGlobals() {
+		return new HashSet<>(globalVars.keySet());
+	}
+	
+	public Set<Integer> getLocals() {
+		return new HashSet<>(localVars.keySet());
 	}
 	
 	private <T> void setVar(Map<T, Value> map, T key, Object value) {

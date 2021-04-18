@@ -42,4 +42,13 @@ public enum ANSI {
 	public String toString() {
 		return toTrueColorImpl(color);
 	}
+	
+	public static Object getColorFrom(char c) {
+		switch(c) {
+		case 'R': return RED;
+		case '$': return RESET;
+		case 'Y': return YELLOW;
+		default: throw new IllegalArgumentException("Unknown color code: " + c);
+		}
+	}
 }
