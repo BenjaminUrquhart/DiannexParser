@@ -90,7 +90,7 @@ public class Main {
 		RuntimeContext context = runtime.getContext();
 		
 		//context.makeHeadless();
-		context.setVerbose(true);
+		//context.setVerbose(true);
 		context.autodefineGlobals(true);
 		context.setGlobal("global.playerkills", 21);
 		context.setGlobal("global.areapopulations", new Integer[] { 0, 0, 0, 0 });
@@ -129,10 +129,7 @@ public class Main {
 			RuntimeContext.waitForInput();
 		});
 		
-		// Genocide dialogue
-		TSUSFunctions.isGeno = true;
-		TSUSFunctions.setFlag("j_hm0", 2);
-		System.out.println("Return value: " + runtime.eval(file.sceneByName("tem.ruin_exit")));
+		System.out.println("Return value: " + runtime.eval(file.sceneByName("battles.metta.sb")));
 	
 		/*
 		for(DNXScene scene : file.getScenes()) {

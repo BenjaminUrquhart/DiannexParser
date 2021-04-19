@@ -278,6 +278,7 @@ public class RuntimeContext {
 		saveRegister = null;
 		typer = "Narrator";
 		localVars.clear();
+		choices.clear();
 		stack.clear();
 		depth = 0;
 		ptr = 0;

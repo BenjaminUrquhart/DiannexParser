@@ -199,9 +199,6 @@ public class DNXRuntime {
 			if(context.choices == null) {
 				context.choices = new ArrayList<>();
 			}
-			else {
-				context.choices.clear();
-			}
 			context.choices.add(new Choice("-", stack.pop(double.class), ptr + inst.getFirstArg()));
 			break;
 		case CHOOSEADDT:
@@ -225,6 +222,7 @@ public class DNXRuntime {
 					context.choiced = true;
 					return false;
 				}
+				prev += choice.chance;
 			}
 			throw new IllegalStateException("Failed to choicesel! No option was selected.");
 		case POP:
