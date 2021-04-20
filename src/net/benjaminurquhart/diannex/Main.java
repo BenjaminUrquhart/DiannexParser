@@ -1,11 +1,11 @@
 package net.benjaminurquhart.diannex;
 
 import java.io.File;
-import java.util.Arrays;
+//import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+//import java.util.regex.Matcher;
+//import java.util.regex.Pattern;
 
 import net.benjaminurquhart.diannex.runtime.ANSI;
 import net.benjaminurquhart.diannex.runtime.DNXRuntime;
@@ -24,7 +24,7 @@ public class Main {
 		public static boolean isGeno;
 		
 		@ExternalDNXFunction
-		public static void setFlag(String flag, int val) {
+		public static synchronized void setFlag(String flag, int val) {
 			System.out.printf("%sSet flag: %s = %s%s\n", ANSI.GRAY, flag, val, ANSI.RESET);
 			flags.put(flag, val);
 		}
@@ -37,7 +37,7 @@ public class Main {
 		}
 		
 		@ExternalDNXFunction
-		public static void setPersistFlag(String flag, int val) {
+		public static synchronized void setPersistFlag(String flag, int val) {
 			System.out.printf("%sSet persistent flag: %s = %s%s\n", ANSI.GRAY, flag, val, ANSI.RESET);
 			persistFlags.put(flag, val);
 		}
@@ -55,15 +55,23 @@ public class Main {
 			if(scene == null) {
 				throw new IllegalArgumentException("No such scene: " + name);
 			}
-			System.out.printf("%sGoto: %s%s\n", ANSI.GRAY, scene, ANSI.RESET);
-			Map<Integer, Value> oldLocalVars = context.localVars;
-			ValueStack oldStack = context.stack;
-			context.localVars = new HashMap<>();
-			context.stack = new ValueStack();
-			Value retVal =  context.runtime.eval(scene);
-			context.localVars = oldLocalVars;
-			context.stack = oldStack;
-			return retVal;
+			try {
+				System.out.printf("%sGoto: %s%s\n", ANSI.GRAY, scene, ANSI.RESET);
+				Map<Integer, Value> oldLocalVars = context.localVars;
+				ValueStack oldStack = context.stack;
+				context.localVars = new HashMap<>();
+				context.stack = new ValueStack();
+				Value retVal =  context.runtime.eval(scene).get();
+				context.localVars = oldLocalVars;
+				context.stack = oldStack;
+				return retVal;
+			}
+			catch(RuntimeException e) {
+				throw e;
+			}
+			catch(Throwable e) {
+				throw new RuntimeException(e);
+			}
 		}
 		
 		@ExternalDNXFunction("_temTriggerBattle")
@@ -82,20 +90,20 @@ public class Main {
 	public static void main(String[] args) throws Exception {
 		System.out.print(ANSI.RESET);
 		
-		Pattern pattern = Pattern.compile("(`([^`]+)`)", Pattern.CASE_INSENSITIVE);
+		//Pattern pattern = Pattern.compile("(`([^`]+)`)", Pattern.CASE_INSENSITIVE);
 		
 		DNXFile file = new DNXFile(new File("tsus-1.00/data/game_orig.dxb"));
 		
 		DNXRuntime runtime = new DNXRuntime(file);
 		RuntimeContext context = runtime.getContext();
 		
-		//context.makeHeadless();
+		context.makeHeadless();
 		//context.setVerbose(true);
 		context.autodefineGlobals(true);
-		context.setGlobal("global.playerkills", 21);
-		context.setGlobal("global.areapopulations", new Integer[] { 0, 0, 0, 0 });
+		context.setGlobal("global.playerkills", 1);
+		context.setGlobal("global.areapopulations", new Integer[] { 20, 0, 0, 0 });
 		context.registerExternalFunctions(ExternalFunction.getFrom(TSUSFunctions.class));
-		
+		/*
 		context.setMissingExternalFunctionHandler((name, arguments) -> {
 			System.out.printf("%sFunction stub: %s(args=%s)%s\n", ANSI.GRAY, name, Arrays.deepToString(arguments), ANSI.RESET);
 			return 0;
@@ -128,15 +136,28 @@ public class Main {
 			}
 			RuntimeContext.waitForInput();
 		});
-		
-		System.out.println("Return value: " + runtime.eval(file.sceneByName("battles.metta.sb")));
-	
 		/*
+		TSUSFunctions.isGeno = false;
+		TSUSFunctions.setFlag("j_hm0", 0);
+		TSUSFunctions.setFlag("mk_grs", 0);
+		TSUSFunctions.setFlag("asg_betray", 1);
+		TSUSFunctions.setPersistFlag("temg", 0);
+		TSUSFunctions.setPersistFlag("asgk", 0);
+		TSUSFunctions.setPersistFlag("deaths", 1);
+
+		runtime.eval(file.sceneByName("tem.ruin_exit"))
+			   .thenAccept(value -> System.out.println("Return value: " + value))
+			   .exceptionally(e -> {
+				   e.printStackTrace();
+				   return null;
+			   }).get();*/
+	
+		
 		for(DNXScene scene : file.getScenes()) {
 			context.reset();
 			System.out.println("Executing " + scene);
-			System.out.println("Return value: " + runtime.eval(scene));
-		}*/
+			System.out.println("Return value: " + runtime.eval(scene).get());
+		}
 	}
 }
 

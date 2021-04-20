@@ -1,6 +1,5 @@
 package net.benjaminurquhart.diannex.runtime;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -60,8 +59,6 @@ public class RuntimeContext {
 	public ValueStack stack = new ValueStack(provider);
 	public Value[] working = new Value[3];
 	public DNXFile file;
-	
-	protected List<String> prevInstructions = new ArrayList<>();
 	
 	protected List<Choice> choices;
 	protected Choicer choicer;
@@ -263,6 +260,10 @@ public class RuntimeContext {
 		return typer;
 	}
 	
+	public DNXRuntime getRuntime() {
+		return runtime;
+	}
+	
 	public void clearChoiceState() {
 		if(choices != null) {
 			choices.clear();
@@ -274,11 +275,12 @@ public class RuntimeContext {
 	}
 	
 	public void reset() {
-		prevInstructions.clear();
+		if(choices != null) {
+			choices.clear();
+		}
 		saveRegister = null;
 		typer = "Narrator";
 		localVars.clear();
-		choices.clear();
 		stack.clear();
 		depth = 0;
 		ptr = 0;

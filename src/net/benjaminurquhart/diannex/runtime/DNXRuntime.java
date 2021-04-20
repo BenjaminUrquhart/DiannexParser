@@ -1,12 +1,14 @@
 package net.benjaminurquhart.diannex.runtime;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import net.benjaminurquhart.diannex.DNXBytecode;
 import net.benjaminurquhart.diannex.DNXFile;
@@ -23,15 +25,32 @@ public class DNXRuntime {
 	);
 	
 	public static Value simpleEval(DNXCompiled entry, DNXFile file) {
-		return new DNXRuntime(file).eval(entry);
+		try {
+			return new DNXRuntime(file).eval(entry).get();
+		}
+		catch(RuntimeException e) {
+			throw e;
+		}
+		catch(Throwable e) {
+			throw new RuntimeException(e);
+		}
 	}
 	
 	public static Value simpleEval(List<DNXBytecode> instructions, DNXFile file) {
-		return new DNXRuntime(file).eval(instructions);
+		try {
+			return new DNXRuntime(file).eval(instructions).get();
+		}
+		catch(RuntimeException e) {
+			throw e;
+		}
+		catch(Throwable e) {
+			throw new RuntimeException(e);
+		}
 	}
 	
 	
 	private RuntimeContext context;
+	private volatile boolean suspended;
 	
 	public DNXRuntime(DNXFile file) {
 		this.context = new RuntimeContext(this, file);
@@ -41,41 +60,62 @@ public class DNXRuntime {
 		return context;
 	}
 	
-	public Value eval(DNXCompiled entry) {
+	public boolean isSuspended() {
+		return suspended;
+	}
+	
+	public boolean setSuspended(boolean suspended) {
+		return this.suspended = suspended;
+	}
+	
+	public CompletableFuture<Value> eval(DNXCompiled entry) {
+		return  CompletableFuture.supplyAsync(() -> internalEval(entry));
+	}
+	
+	public CompletableFuture<Value> eval(List<DNXBytecode> instructions) {
+		if(context.runtime != this) {
+			throw new IllegalStateException("Current context is not bound to this runtime");
+		}
+		return CompletableFuture.supplyAsync(() -> internalEval(instructions));
+	}
+	
+	private Value internalEval(DNXCompiled entry) {
 		int offset = context.localVars.size();
 		for(int i = 0; i < entry.flags.size(); i++) {
-			context.setLocal(i + offset, eval(entry.flags.get(i).valueBytecode));
+			context.setLocal(i + offset, internalEval(entry.flags.get(i).valueBytecode));
 		}
 		if(!context.localVars.isEmpty()) {
 			System.out.printf("%sLocals: %s%s\n", ANSI.GRAY, context.localVars, ANSI.RESET);
 		}
-		return eval(entry.instructions);
+		return internalEval(entry.instructions);
 	}
 	
-	public Value eval(List<DNXBytecode> instructions) {
-		if(context.runtime != this) {
-			throw new IllegalStateException("Current context is not bound to this runtime");
-		}
+	private Value internalEval(List<DNXBytecode> instructions) {
 		DNXBytecode[] insts = instructions.toArray(DNXBytecode[]::new);
 		DNXBytecode inst;
 		
 		String stackStr = null, instStr;
 		
+		List<String> prevInstructions = new ArrayList<>();
+		
 		for(int ptr = 0; ptr < insts.length; ptr++) {
+			
+			while(suspended);
+			
 			context.ptr = ptr;
 			inst = insts[ptr];
 			
 			instStr = ">".repeat(context.depth) + " " + ptr + ": " + inst.toString(context.file);
 			
-			context.prevInstructions.add(instStr);
-			while(context.prevInstructions.size() > 10) {
-				context.prevInstructions.remove(0);
+			prevInstructions.add(instStr);
+			while(prevInstructions.size() > 10) {
+				prevInstructions.remove(0);
 			}
 			
 			if(inst.getOpcode() == Opcode.RET || inst.getOpcode() == Opcode.EXIT) {
 				break;
 			}
-			stackStr = context.stack.toString();
+			stackStr = stackToStr(context.stack);
 			
 			if(context.isVerbose()) {
 				System.out.println(instStr + " " + stackStr);
@@ -94,9 +134,9 @@ public class DNXRuntime {
 				System.out.flush();
 				System.err.flush();
 				System.err.println("Execution error at instruction " + ptr + ": " + inst.toString(context.file));
-				if(context.prevInstructions.size() > 1) {
-					System.err.println("Last " + context.prevInstructions.size() + " instructions:");
-					for(String prev : context.prevInstructions) {
+				if(prevInstructions.size() > 1) {
+					System.err.println("Last " + prevInstructions.size() + " instructions:");
+					for(String prev : prevInstructions) {
 						System.err.println(prev);
 					}
 				}
@@ -149,7 +189,12 @@ public class DNXRuntime {
 			break;
 		
 		case MAKEARR:
-			stack.pushObj(new Object[stack.pop(int.class)]);
+			int size = inst.getFirstArg();
+			Object[] arr = new Object[size];
+			for(int i = size - 1; i >= 0; i--) {
+				arr[i] = stack.pop(Object.class);
+			}
+			stack.pushObj(arr);
 			break;
 		case PUSHARRIND:
 			context.populate(2);
@@ -352,7 +397,7 @@ public class DNXRuntime {
 			}
 			
 			context.depth++;
-			stack.push(eval(context.file.functionByName(inst.parseFirst(context.file, false))));
+			stack.push(internalEval(context.file.functionByName(inst.parseFirst(context.file, false))));
 			context.localVars = oldLocalVars;
 			context.stack = stack;
 			context.ptr = ptr;
@@ -386,6 +431,17 @@ public class DNXRuntime {
 
 		
 		return false;
+	}
+	
+	private String stackToStr(ValueStack stack) {
+		Object[] objs = new Object[stack.size()];
+		for(int i = 0; i < objs.length; i++) {
+			objs[i] = stack.pop(Object.class);
+		}
+		for(int i = objs.length - 1; i >= 0; i --) {
+			stack.pushObj(objs[i]);
+		}
+		return Arrays.deepToString(objs);
 	}
 	
 	private String fillInterpolatedString(String str, int argc) {
