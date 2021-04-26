@@ -191,7 +191,7 @@ public class DNXFile {
 	
 	public void write(File file) throws IOException {
 		compressed = false;
-		System.out.println("Serializing...");
+		//System.out.println("Serializing...");
 		
 		regenerateBytecodeList();
 		

@@ -229,7 +229,7 @@ public class DNXBytecode implements IDNXSerializable {
 			return Integer.parseInt(String.valueOf(arg));
 		}
 		catch(Exception e) {
-			throw new IllegalArgumentException("Expected integer argument for opcode " + opcode + ", got " + arg + " (" + (arg == null ? null : arg.getClass().getName() + ")"));
+			throw new IllegalArgumentException("Expected integer argument for opcode " + opcode + ", got " + arg + " (" + (arg == null ? null : arg.getClass().getName()) + ")");
 		}
 	}
 	
@@ -238,7 +238,7 @@ public class DNXBytecode implements IDNXSerializable {
 			return Double.parseDouble(String.valueOf(arg));
 		}
 		catch(Exception e) {
-			throw new IllegalArgumentException("Expected floating-point argument for opcode " + opcode + ", got " + arg + " (" + (arg == null ? null : arg.getClass().getName() + ")"));
+			throw new IllegalArgumentException("Expected floating-point argument for opcode " + opcode + ", got " + arg + " (" + (arg == null ? null : arg.getClass().getName()) + ")");
 		}
 	}
 	

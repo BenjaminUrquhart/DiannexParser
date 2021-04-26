@@ -3,6 +3,7 @@ package net.benjaminurquhart.diannex;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 
 import net.benjaminurquhart.diannex.DNXBytecode.Opcode;
 
@@ -53,10 +54,13 @@ public class DNXAssembler {
 		StringBuilder token = new StringBuilder();
 		boolean inString = false, escaped = false, unescape = false;
 		
-		Runnable appendAndClear = () -> {
-			if(token.length() > 0) {
+		Consumer<Boolean> append = force -> {
+			if(force || token.length() > 0) {
 				out.add(token.toString());
-				token.delete(0, token.length());
+				if(token.length() > 0) {
+					token.delete(0, token.length());
+				}
+					
 			}
 		};
 		
@@ -74,20 +78,20 @@ public class DNXAssembler {
 				break;
 			}
 			else if(c == '"' && !escaped) {
-				appendAndClear.run();
+				append.accept(inString);
 				inString = !inString;
 			}
 			else if(c == '\\') {
 				escaped = true;
 			}
 			else if(c == ' ' && !inString && !escaped) {
-				appendAndClear.run();
+				append.accept(false);
 			}
 			else {
 				token.append(c);
 			}
 		}
-		appendAndClear.run();
+		append.accept(false);
 		return out.toArray(String[]::new);
 	}
 }
