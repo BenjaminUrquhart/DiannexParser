@@ -1,20 +1,73 @@
 package net.benjaminurquhart.diannex;
 
+import java.io.File;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import net.benjaminurquhart.diannex.runtime.ANSI;
-import net.benjaminurquhart.diannex.runtime.ExternalDNXFunction;
-import net.benjaminurquhart.diannex.runtime.RuntimeContext;
-import net.benjaminurquhart.diannex.runtime.Value;
-import net.benjaminurquhart.diannex.runtime.ValueStack;
+import net.benjaminurquhart.diannex.runtime.*;
 
 public class Main {
 	
 	public static void main(String[] args) throws Exception {
 		
-		DNXFile file = new DNXFile();
-		DNXAssembler.assemble("pushbs \"\"", file).forEach(b -> System.out.println(b.toString(file)));
+		System.out.print(ANSI.RESET);
+		
+		File testFile = new File("test_v3.dxb");
+		DNXFile file = new DNXFile(new File("tsus_demo_v3_format.dxb"));
+		file.write(testFile);
+		file = new DNXFile(testFile);
+		
+		
+		DNXScene scene = file.sceneByName("asg.ruined4");
+		
+		Pattern pattern = Pattern.compile("(`([^`]+)`)", Pattern.CASE_INSENSITIVE);
+		
+		DNXRuntime runtime = new DNXRuntime(file);
+		RuntimeContext context = runtime.getContext();
+		
+		context.autodefineGlobals(true);
+		context.registerExternalFunctions(ExternalFunction.getFrom(TSUSFunctions.class));
+		
+		context.setMissingExternalFunctionHandler((name, arguments) -> {
+			System.out.printf("%sFunction stub: %s(args=%s)%s\n", ANSI.GRAY, name, Arrays.deepToString(arguments), ANSI.RESET);
+			return 0;
+		});
+		
+		context.setTextrunHandler((ctx, text) -> {
+			text = text.replace("\\", "").replace("#", "\n");
+			Matcher matcher = pattern.matcher(text);
+			char code;
+			String toReplace, group, replace = "";
+			
+			while(matcher.find()) {
+				replace = "";
+				
+				toReplace = matcher.group(1);
+				group = matcher.group(2);
+				code = group.charAt(0);
+				
+				//System.out.println(toReplace + " " + group);
+				
+				switch(code) {
+				case 'c': replace = ANSI.getColorFrom(group.charAt(1)).toString(); break;
+				}
+				text = text.replace(toReplace, replace);
+			}
+			if(!text.startsWith("\n") && text.contains("\n")) {
+				text = "\n" + text;
+			}
+			System.out.printf("[%s] %s", ctx.getTyper(), text);
+			if(context.isChoicing()) {
+				System.out.println();
+				return;
+			}
+			RuntimeContext.waitForInput();
+		});
+		
+		System.out.println("Return value: " + runtime.eval(scene).get());
 	}
 	
 	

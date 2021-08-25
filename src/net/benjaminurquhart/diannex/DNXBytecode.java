@@ -10,10 +10,20 @@ import com.google.common.io.LittleEndianDataOutputStream;
 public class DNXBytecode implements IDNXSerializable {
 	
 	public static enum Type {
-		DEFAULT,
-		SINGLE,
-		DOUBLE,
-		FLOAT;
+		DEFAULT(0), // no data (0 bytes)
+		FLOAT(8),   // one double (8 bytes)
+		ONE(4),     // one int (4 bytes)
+		TWO(8);     // two ints (8 bytes)
+		
+		private final int length;
+		
+		private Type(int length) {
+			this.length = length;
+		}
+		
+		public int getLength() {
+			return length;
+		}
 	}
 	
 	public static enum Opcode {
@@ -90,7 +100,7 @@ public class DNXBytecode implements IDNXSerializable {
 		
 		TEXTRUN(0x4E),
 		
-		PATCH_CALL(0xFF); // Unused?
+		PATCH_CALL(0xFF); // Unused, internal to the Diannex compiler
 		
 		private final int value;
 		
@@ -108,7 +118,15 @@ public class DNXBytecode implements IDNXSerializable {
 		}
 	}
 	
-	private static final Set<Opcode> STRING_RESOLVE = EnumSet.of(
+	public static final Set<Opcode> JUMPS = EnumSet.of(
+			Opcode.CHOICESEL,
+			Opcode.CHOOSESEL,
+			Opcode.JT, 
+			Opcode.JF,
+			Opcode.J
+	);
+	
+	public static final Set<Opcode> STRING_RESOLVE = EnumSet.of(
 			Opcode.PUSHS,
 			Opcode.PUSHBS,
 			Opcode.CALLEXT,
@@ -123,14 +141,18 @@ public class DNXBytecode implements IDNXSerializable {
 	private int arg1, arg2;
 	private double argDouble;
 	
+	protected int offset;
+	
+	private DNXBytecode() {}
+	
 	public DNXBytecode(ByteBuffer reader) {
 		opcode = Opcode.from(reader.get());
 		determineType();
 		switch(type) {
-		case SINGLE:
+		case ONE:
 			arg1 = reader.getInt();
 			break;
-		case DOUBLE:
+		case TWO:
 			arg1 = reader.getInt();
 			arg2 = reader.getInt();
 			break;
@@ -146,7 +168,7 @@ public class DNXBytecode implements IDNXSerializable {
 		determineType();
 		
 		switch(type) {
-		case SINGLE:
+		case ONE:
 			if(STRING_RESOLVE.contains(opcode)) {
 				arg1 = parseArgString(reader, args[0]);
 			}
@@ -155,7 +177,7 @@ public class DNXBytecode implements IDNXSerializable {
 			}
 			break;
 		
-		case DOUBLE:
+		case TWO:
 			int index;
 			if(opcode == Opcode.CALL) {
 				if(args[0] instanceof DNXFunction) {
@@ -260,13 +282,13 @@ public class DNXBytecode implements IDNXSerializable {
 		case CHOOSEADD:
 		case CHOOSEADDT:
 		case MAKEARR:
-			type = Type.SINGLE;
+			type = Type.ONE;
 			break;
 		case CALL:
 		case CALLEXT:
 		case PUSHINTS:
 		case PUSHBINTS:
-			type = Type.DOUBLE;
+			type = Type.TWO;
 			break;
 		case PUSHD:
 			type = Type.FLOAT;
@@ -275,18 +297,35 @@ public class DNXBytecode implements IDNXSerializable {
 		}
 	}
 	
+	public void setFirstArg(int arg) {
+		arg1 = arg;
+	}
+	
+	public void setSecondArg(int arg) {
+		arg2 = arg;
+	}
+	
+	public void setDoubleArg(double arg) {
+		argDouble = arg;
+	}
+	
+	@Override
+	public int getLength() {
+		return type.getLength() + 1;
+	}
+	
 	@Override
 	public void serialize(DNXFile reader, LittleEndianDataOutputStream buff) throws IOException {
 		buff.write(opcode.value);
 		switch(type) {
-		case DOUBLE:
+		case TWO:
 			buff.writeInt(arg1);
 			buff.writeInt(arg2);
 			break;
 		case FLOAT:
 			buff.writeDouble(argDouble);
 			break;
-		case SINGLE:
+		case ONE:
 			buff.writeInt(arg1);
 			break;
 		default:
@@ -315,6 +354,18 @@ public class DNXBytecode implements IDNXSerializable {
 		return type;
 	}
 	
+	public DNXBytecode clone() {
+		DNXBytecode out = new DNXBytecode();
+		out.argDouble = argDouble;
+		out.offset = offset;
+		out.opcode = opcode;
+		out.type = type;
+		out.arg1 = arg1;
+		out.arg2 = arg2;
+		
+		return out;
+	}
+	
 	public String toString() {
 		return toString(null);
 	}
@@ -322,10 +373,10 @@ public class DNXBytecode implements IDNXSerializable {
 		StringBuilder sb = new StringBuilder(opcode.name().toLowerCase());
 		sb.append(" ");
 		switch(type) {
-		case SINGLE: 
+		case ONE: 
 			sb.append(parseFirst(reader));
 			break;
-		case DOUBLE: sb.append(parseFirst(reader)); sb.append(" "); sb.append(arg2); break;
+		case TWO: sb.append(parseFirst(reader)); sb.append(" "); sb.append(arg2); break;
 		case FLOAT: sb.append(argDouble); break;
 		default: break;
 		}

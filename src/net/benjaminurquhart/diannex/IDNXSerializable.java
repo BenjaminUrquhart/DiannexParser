@@ -7,4 +7,8 @@ import com.google.common.io.LittleEndianDataOutputStream;
 public interface IDNXSerializable {
 
 	void serialize(DNXFile file, LittleEndianDataOutputStream stream) throws IOException;
+	
+	default int getLength() {
+		return -1;
+	}
 }

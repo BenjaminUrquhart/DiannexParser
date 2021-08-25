@@ -12,6 +12,7 @@ import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -26,6 +27,7 @@ public class DNXFile {
 	private final List<DNXScene> scenes;
 	private final List<DNXString> strings;
 	private final List<DNXString> translations;
+	private final List<DNXString> externalFunctionNames;
 
 	private final List<DNXFunction> functions;
 	private final List<DNXDefinition> definitions;
@@ -40,6 +42,8 @@ public class DNXFile {
 	
 	private boolean compressed;
 	private boolean internalTranslationFile;
+	
+	protected int version;
 	
 	protected boolean ready;
 	
@@ -56,6 +60,7 @@ public class DNXFile {
 		definitionMap = new HashMap<>();
 		
 		entryPoints = new ArrayList<>();
+		externalFunctionNames = new ArrayList<>();
 		
 		ready = true;
 	}
@@ -70,15 +75,21 @@ public class DNXFile {
 		
 		try {
 			int header = reader.getInt();
-			if(header != 0x444e5802) {
+			version = header & 0xff;
+			if((header >> 8) != 0x444e58) {
 				throw new IllegalStateException(String.format(
-						"Unexpected DNX header; expected DNX v2, got %c%c%c v%d", 
+						"Unexpected DNX header: %c%c%c (v%d)", 
 						(header >> 24) & 0xff, 
 						(header >> 16) & 0xff, 
 						(header >> 8) & 0xff, 
-						header & 0xff
+						version
 				));
 			}
+			
+			if(version != 2 && version != 3) {
+				throw new IllegalStateException("Unsupported DNX version: " + version);
+			}
+			
 			reader.order(ByteOrder.LITTLE_ENDIAN);
 			byte flags = reader.get();
 			
@@ -114,9 +125,77 @@ public class DNXFile {
 			scenes = readListOf(DNXScene.class, reader);
 			functions = readListOf(DNXFunction.class, reader);
 			definitions = readListOf(DNXDefinition.class, reader);
-			bytecode = readListOf(DNXBytecode.class, reader);
+			
+			if(version >= 3) {
+				
+				// Convert byte offsets into indexes like in v2
+				
+				int offset = 0, index = 0;
+				Map<Integer, Integer> indexMapping = new HashMap<>();
+				Map<DNXBytecode, Integer> offsetMapping = new HashMap<>();
+				bytecode = readUnsizedListOf(DNXBytecode.class, reader);
+				
+				Set<DNXBytecode.Opcode> toPatch = EnumSet.of(
+						DNXBytecode.Opcode.J, 
+						DNXBytecode.Opcode.JT, 
+						DNXBytecode.Opcode.JF,
+						DNXBytecode.Opcode.CHOICEADD,
+						DNXBytecode.Opcode.CHOOSEADD,
+						DNXBytecode.Opcode.CHOICEADDT,
+						DNXBytecode.Opcode.CHOOSEADDT
+				);
+				
+				for(DNXBytecode entry : bytecode) {
+					//System.out.println(entry);
+					indexMapping.put(offset, index);
+					offsetMapping.put(entry, offset);
+					offset += entry.getLength();
+					index++;
+				}
+				
+				int selfOffset;
+				for(DNXBytecode entry : bytecode) {
+					if(toPatch.contains(entry.getOpcode())) {
+						selfOffset = offsetMapping.get(entry) + entry.getLength();
+						entry.setFirstArg(indexMapping.get(selfOffset + entry.getFirstArg()) - indexMapping.get(selfOffset) + 1);
+					}
+				}
+				
+				for(DNXScene entry : scenes) {
+					for(int i = 0; i < entry.bytecodeIndicies.size(); i++) {
+						entry.bytecodeIndicies.set(i, indexMapping.get(entry.bytecodeIndicies.get(i)));
+					}
+				}
+				
+				for(DNXFunction entry : functions) {
+					for(int i = 0; i < entry.bytecodeIndicies.size(); i++) {
+						entry.bytecodeIndicies.set(i, indexMapping.get(entry.bytecodeIndicies.get(i)));
+					}
+				}
+				
+				for(DNXDefinition entry : definitions) {
+					for(int i = 0, ind; i < entry.bytecodeIndicies.size(); i++) {
+						ind = entry.bytecodeIndicies.get(i);
+						if(ind != -1) {
+							entry.bytecodeIndicies.set(i, indexMapping.get(ind));
+						}
+					}
+				}
+			}
+			else {
+				bytecode = readListOf(DNXBytecode.class, reader);
+			}
+			
 			strings = readListOf(DNXString.class, reader);
 			translations = internalTranslationFile ? readListOf(DNXString.class, reader) : new ArrayList<>();
+			externalFunctionNames = new ArrayList<>();
+			
+			if(version >= 3) {
+				int listSize = reader.getInt();
+				for(int i = 0; i < listSize; i++) {
+					externalFunctionNames.add(strings.get(reader.getInt()));
+				}
+			}
 			
 			int read = reader.position() - pos;
 			if(read != size) {
@@ -187,6 +266,13 @@ public class DNXFile {
 		if(bytecodeSet.size() != bytecode.size()) {
 			throw new IllegalStateException((bytecode.size() - bytecodeSet.size()) + " duplicate bytecode elements");
 		}
+		
+		// Used for serialization
+		int offset = 0;
+		for(DNXBytecode entry : bytecode) {
+			entry.offset = offset;
+			offset += entry.getLength();
+		}
 	}
 	
 	public void write(File file) throws IOException {
@@ -198,14 +284,65 @@ public class DNXFile {
 		ByteArrayOutputStream rawStream = new ByteArrayOutputStream();
 		LittleEndianDataOutputStream stream = new LittleEndianDataOutputStream(rawStream);
 		
+		List<DNXBytecode> bytecode = new ArrayList<>(this.bytecode.size());
+		
+		for(DNXBytecode entry : this.bytecode) {
+			bytecode.add(entry.clone());
+		}
+		
+		if(version >= 3) {
+			int offset = 0, index = 0;
+			Map<Integer, Integer> offsetMapping = new HashMap<>();
+			Map<DNXBytecode, Integer> bytecodeMapping = new HashMap<>();
+			
+			for(DNXBytecode entry : bytecode) {
+				bytecodeMapping.put(entry, offset);
+				offsetMapping.put(index, offset);
+				offset += entry.getLength();
+				index++;
+			}
+			
+			Set<DNXBytecode.Opcode> toPatch = EnumSet.of(
+					DNXBytecode.Opcode.J, 
+					DNXBytecode.Opcode.JT, 
+					DNXBytecode.Opcode.JF,
+					DNXBytecode.Opcode.CHOICEADD,
+					DNXBytecode.Opcode.CHOOSEADD,
+					DNXBytecode.Opcode.CHOICEADDT,
+					DNXBytecode.Opcode.CHOOSEADDT
+			);
+			
+			index = 0;
+			for(DNXBytecode entry : bytecode) {
+				if(toPatch.contains(entry.getOpcode())) {
+					entry.setFirstArg(offsetMapping.get(index + entry.getFirstArg()) - bytecodeMapping.get(entry) - entry.getLength());
+				}
+				index++;
+			}
+		}
+		
 		writeList(stream, scenes);
 		writeList(stream, functions);
 		writeList(stream, definitions);
-		writeList(stream, bytecode);
+		
+		if(version >= 3) {
+			writeUnsizedList(stream, bytecode);
+		}
+		else {
+			writeList(stream, bytecode);
+		}
+		
 		writeList(stream, strings);
 		
 		if(internalTranslationFile) {
 			writeList(stream, translations);
+		}
+		
+		if(version >= 3) {
+			stream.writeInt(externalFunctionNames.size());
+			for(DNXString entry : externalFunctionNames) {
+				stream.writeInt(strings.indexOf(entry));
+			}
 		}
 		
 		rawStream.flush();
@@ -215,7 +352,7 @@ public class DNXFile {
 		fileStream.write(0x44); // D
 		fileStream.write(0x4e); // N
 		fileStream.write(0x58); // X
-		fileStream.write(0x02); // 2
+		fileStream.write(version);
 		
 		int flags = (compressed ? 1 : 0) | ((internalTranslationFile ? 1 : 0) << 1);
 		fileStream.write(flags);
@@ -265,6 +402,18 @@ public class DNXFile {
 		return out;
 	}
 	
+	private static <T> List<T> readUnsizedListOf(Class<T> clazz, ByteBuffer reader) throws NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+		Constructor<T> constructor = clazz.getConstructor(ByteBuffer.class);
+		List<T> out = new ArrayList<>();
+		int numBytes = reader.getInt();
+		int position = reader.position();
+		
+		while(reader.position() - position < numBytes) {
+			out.add(constructor.newInstance(reader));
+		}
+		return out;
+	}
+	
 	private <T extends IDNXSerializable> void writeList(LittleEndianDataOutputStream stream, List<T> list) throws IOException {
 		stream.writeInt(list.size());
 		//System.out.printf("Writing list of %s with %d elements\n", list.isEmpty() ? "???" : list.get(0).getClass(), list.size());
@@ -272,6 +421,22 @@ public class DNXFile {
 			element.serialize(this, stream);
 			stream.flush();
 		}
+	}
+	
+	private <T extends IDNXSerializable> void writeUnsizedList(LittleEndianDataOutputStream stream, List<T> list) throws IOException {
+		ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+		LittleEndianDataOutputStream tmp = new LittleEndianDataOutputStream(buffer);
+		
+		for(T element : list) {
+			element.serialize(this, tmp);
+			tmp.flush();
+		}
+		
+		tmp.close();
+		byte[] bytes = buffer.toByteArray();
+		
+		stream.writeInt(bytes.length);
+		stream.write(bytes);
 	}
 	
 	private <T> void addNonNullUnique(List<T> list, T element) {
@@ -337,16 +502,24 @@ public class DNXFile {
 		internalTranslationFile = true;
 	}
 	
+	
+	public void addScene(DNXScene scene) {
+		addNonNullUnique(scenes, scene);
+		rebuildSceneMap();
+	}
+	
 	public void addString(DNXString string) {
 		addNonNullUnique(strings, string);
 	}
 	
 	public void addFunction(DNXFunction function) {
 		addNonNullUnique(functions, function);
+		rebuildFunctionMap();
 	}
 	
 	public void addDefinition(DNXDefinition definition) {
 		addNonNullUnique(definitions, definition);
+		rebuildDefinitionMap();
 	}
 	
 	
@@ -362,4 +535,28 @@ public class DNXFile {
 		return sceneMap.get(name);
 	}
 	
+	private <T extends DNXCompiled> void rebuildMap(Map<String, T> map, List<T> list) {
+		map.clear();
+		for(T t : list) {
+			map.put(t.name.get(), t);
+		}
+	}
+	
+	public void rebuildSceneMap() {
+		rebuildMap(sceneMap, scenes);
+	}
+	
+	public void rebuildFunctionMap() {
+		rebuildMap(functionMap, functions);
+	}
+	
+	public void rebuildDefinitionMap() {
+		rebuildMap(definitionMap, definitions);
+	}
+	
+	public void rebuildMaps() {
+		rebuildSceneMap();
+		rebuildFunctionMap();
+		rebuildDefinitionMap();
+	}
 }

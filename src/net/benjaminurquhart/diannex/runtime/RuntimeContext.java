@@ -162,7 +162,7 @@ public class RuntimeContext {
 		this.headless = true;
 		this.autodefineGlobals = true;
 		this.textrunHandler = (ctx, text) -> {};
-		this.missingFunctionHandler = (name, args) -> { return 0; };
+		this.missingFunctionHandler = (name, args) -> 0;
 	}
 	
 	public boolean isHeadless() {

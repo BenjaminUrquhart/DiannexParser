@@ -28,8 +28,16 @@ public class DNXFlag implements IDNXSerializable {
 	}
 	
 	public void serialize(DNXFile reader, LittleEndianDataOutputStream buff) throws IOException {
-		buff.writeInt(valueBytecode.isEmpty() ? -1 : reader.bytecode.indexOf(valueBytecode.get(0)));
-		buff.writeInt(keyBytecode.isEmpty() ? -1 : reader.bytecode.indexOf(keyBytecode.get(0)));
+		buff.writeInt(
+				valueBytecode.isEmpty() ? -1 : 
+				reader.version >= 3 ? valueBytecode.get(0).offset : 
+				reader.bytecode.indexOf(valueBytecode.get(0))
+		);
+		buff.writeInt(
+				keyBytecode.isEmpty() ? -1 : 
+				reader.version >= 3 ? keyBytecode.get(0).offset : 
+				reader.bytecode.indexOf(keyBytecode.get(0))
+		);
 	}
 	
 	public String getPretty(DNXFile reader) {

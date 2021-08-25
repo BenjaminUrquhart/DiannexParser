@@ -2,6 +2,7 @@ package net.benjaminurquhart.diannex.runtime;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -9,9 +10,11 @@ public class Value {
 	
 	private static Map<Class<?>, Method> numGetters = new HashMap<>();
 	
+	private Map<Class<?>, Object> castCache;
 	private Object value;
 	
 	public Value(Object value) {
+		castCache = new HashMap<>();
 		update(value);
 	}
 	
@@ -27,6 +30,7 @@ public class Value {
 	}
 	
 	public void update(Object obj) {
+		castCache.clear();
 		if(obj instanceof Boolean) {
 			value = ((boolean)obj) ? 1 : 0;
 		}
@@ -69,11 +73,14 @@ public class Value {
 	@SuppressWarnings("unchecked")
 	public <T> T get(Class<T> clazz) {
 		if(value == null || value.getClass() == clazz) {
+			//System.out.printf("%sGet '%s' (%s)%s\n", ANSI.GRAY, value, value == null ? null : value.getClass(), ANSI.RESET);
 			return clazz.cast(value);
 		}
 		if(clazz == Object.class) {
+			//System.out.printf("%sGet '%s' (%s) as raw object%s\n", ANSI.GRAY, value, value == null ? null : value.getClass(), ANSI.RESET);
 			return (T)value;
 		}
+		//System.out.printf("%sCast '%s' (%s) to %s%s\n", ANSI.GRAY, value, value == null ? null : value.getClass(), clazz, ANSI.RESET);
 		if(clazz.isArray()) {
 			if(value.getClass().isArray()) {
 				if(clazz.isInstance(value)) {
@@ -89,6 +96,12 @@ public class Value {
 			return (T)(Boolean.valueOf(value != null && get(int.class) > 0));
 		}
 		if(clazz == String.class) {
+			// Implementation-dependent: the TS!Underswap Diannex runtime
+			// in particular will error when trying to read arrays as strings.
+			// This is more for debugging and shouldn't be relied upon.
+			if(value.getClass().isArray()) {
+				return (T)Arrays.deepToString((Object[])value);
+			}
 			return (T)String.valueOf(value);
 		}
 		Throwable cause = null;

@@ -129,6 +129,10 @@ public class DNXRuntime {
 					context.clearChoiceState();
 					ptr = context.ptr - 1;
 				}
+				
+				if(ptr < -1 || ptr >= insts.length - 1) {
+					throw new IllegalStateException("Pointer moved out of bounds: " + ptr);
+				}
 			}
 			catch(Throwable e) {
 				System.out.flush();
@@ -349,19 +353,19 @@ public class DNXRuntime {
 			break;
 		case CMPGT:
 			context.populate(2);
-			stack.pushObj(working[0].get(int.class) > working[1].get(int.class));
+			stack.pushObj(working[0].get(double.class) > working[1].get(double.class));
 			break;
 		case CMPLT:
 			context.populate(2);
-			stack.pushObj(working[0].get(int.class) < working[1].get(int.class));
+			stack.pushObj(working[0].get(double.class) < working[1].get(double.class));
 			break;
 		case CMPGTE:
 			context.populate(2);
-			stack.pushObj(working[0].get(int.class) >= working[1].get(int.class));
+			stack.pushObj(working[0].get(double.class) >= working[1].get(double.class));
 			break;
 		case CMPLTE:
 			context.populate(2);
-			stack.pushObj(working[0].get(int.class) <= working[1].get(int.class));
+			stack.pushObj(working[0].get(double.class) <= working[1].get(double.class));
 			break;
 		case CMPNEQ:
 			context.populate(2);
@@ -387,7 +391,6 @@ public class DNXRuntime {
 			break;
 			
 		case CALL:
-			// TODO: limit how far functions can see down the stack
 			Map<Integer, Value> oldLocalVars = context.localVars;
 			context.localVars = new HashMap<>();
 			context.stack = new ValueStack();
@@ -440,6 +443,9 @@ public class DNXRuntime {
 		}
 		for(int i = objs.length - 1; i >= 0; i --) {
 			stack.pushObj(objs[i]);
+			if(objs[i] != null && !((objs[i] instanceof Number) || (objs[i].getClass().isArray()))) {
+				objs[i] = '"' + objs[i].toString() + '"';
+			}
 		}
 		return Arrays.deepToString(objs);
 	}

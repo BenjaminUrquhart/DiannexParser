@@ -26,6 +26,7 @@ public abstract class DNXCompiled implements IDNXSerializable {
 	
 	protected DNXCompiled() {
 		this.flags = new ArrayList<>();
+		this.instructions = new ArrayList<>();
 		this.bytecodeIndicies = new ArrayList<>();
 	}
 	
@@ -60,7 +61,11 @@ public abstract class DNXCompiled implements IDNXSerializable {
 	public void serialize(DNXFile reader, LittleEndianDataOutputStream buff) throws IOException {
 		buff.writeInt(reader.getStrings().indexOf(name));
 		buff.writeShort((short)(flags.size() * 2 + 1));
-		buff.writeInt(instructions.isEmpty() ? -1 : reader.bytecode.indexOf(instructions.get(0)));
+		buff.writeInt(
+				instructions.isEmpty() ? -1 : 
+				reader.version >= 3 ? instructions.get(0).offset : 
+				reader.bytecode.indexOf(instructions.get(0))
+		);
 		for(DNXFlag flag : flags) {
 			flag.serialize(reader, buff);
 		}

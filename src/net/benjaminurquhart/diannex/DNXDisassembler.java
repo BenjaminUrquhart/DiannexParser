@@ -59,13 +59,7 @@ public class DNXDisassembler {
 		
 	}
 	
-	private static final Set<DNXBytecode.Opcode> JUMPS = EnumSet.of(
-			DNXBytecode.Opcode.CHOICESEL,
-			DNXBytecode.Opcode.CHOOSESEL,
-			DNXBytecode.Opcode.JT, 
-			DNXBytecode.Opcode.JF,
-			DNXBytecode.Opcode.J
-	);
+	private static final Set<DNXBytecode.Opcode> JUMPS = DNXBytecode.JUMPS;
 	private static final Set<DNXBytecode.Opcode> EXITS = EnumSet.of(DNXBytecode.Opcode.EXIT, DNXBytecode.Opcode.RET);
 	
 	public static List<String> disassemble(DNXCompiled entry, DNXFile reader) {

@@ -59,7 +59,11 @@ public class DNXDefinition extends DNXCompiled {
 		else {
 			throw new IllegalStateException("Floating reference: " + reference);
 		}
-		buff.writeInt(instructions.isEmpty() ? -1 : reader.bytecode.indexOf(instructions.get(0)));
+		buff.writeInt(
+				instructions.isEmpty() ? -1 : 
+				reader.version >= 3 ? instructions.get(0).offset : 
+				reader.bytecode.indexOf(instructions.get(0))
+		);
 	}
 	
 	public String toString() {
