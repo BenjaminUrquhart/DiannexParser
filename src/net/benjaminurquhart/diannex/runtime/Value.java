@@ -3,6 +3,7 @@ package net.benjaminurquhart.diannex.runtime;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,7 +15,7 @@ public class Value {
 	private Object value;
 	
 	public Value(Object value) {
-		castCache = new HashMap<>();
+		castCache = Collections.synchronizedMap(new HashMap<>());
 		update(value);
 	}
 	
@@ -72,6 +73,14 @@ public class Value {
 	
 	@SuppressWarnings("unchecked")
 	public <T> T get(Class<T> clazz) {
+		if(!castCache.containsKey(clazz)) {
+			castCache.put(clazz, getInternal(clazz));
+		}
+		return (T)castCache.get(clazz);
+	}
+	
+	@SuppressWarnings("unchecked")
+	private <T> T getInternal(Class<T> clazz) {
 		if(value == null || value.getClass() == clazz) {
 			//System.out.printf("%sGet '%s' (%s)%s\n", ANSI.GRAY, value, value == null ? null : value.getClass(), ANSI.RESET);
 			return clazz.cast(value);
