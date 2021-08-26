@@ -17,6 +17,8 @@ import net.benjaminurquhart.diannex.DNXCompiled;
 
 public class DNXRuntime {
 	
+	public static final int MAX_CALLSTACK_DEPTH = 10;
+	
 	private static final Set<Opcode> BANNED_IN_CHOICE = EnumSet.of(
 			Opcode.CHOICEBEG,
 			Opcode.CHOOSEADD,
@@ -91,6 +93,9 @@ public class DNXRuntime {
 	}
 	
 	private Value internalEval(List<DNXBytecode> instructions) {
+		if(context.depth >= MAX_CALLSTACK_DEPTH) {
+			throw new IllegalStateException("Maximum callstack depth reached (" + MAX_CALLSTACK_DEPTH + ")");
+		}
 		DNXBytecode[] insts = instructions.toArray(DNXBytecode[]::new);
 		DNXBytecode inst;
 		

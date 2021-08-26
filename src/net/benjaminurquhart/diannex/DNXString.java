@@ -50,6 +50,12 @@ public class DNXString implements IDNXSerializable {
 		//System.out.printf("DNXString [%s]\n", value);
 	}
 	
+	@Override
+	public int getLength() {
+		return value.length() + 1;
+	}
+	
+	@Override
 	public void serialize(DNXFile reader, LittleEndianDataOutputStream buff) throws IOException {
 		buff.write(value.getBytes("utf-8"));
 		buff.write((byte)0);

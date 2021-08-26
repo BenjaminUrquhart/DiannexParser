@@ -24,13 +24,13 @@ import java.util.zip.Inflater;
 
 public class DNXFile {
 	
-	private final List<DNXScene> scenes;
-	private final List<DNXString> strings;
-	private final List<DNXString> translations;
-	private final List<DNXString> externalFunctionNames;
+	public final List<DNXScene> scenes;
+	public final List<DNXString> strings;
+	public final List<DNXString> translations;
+	public final List<DNXString> externalFunctionNames;
 
-	private final List<DNXFunction> functions;
-	private final List<DNXDefinition> definitions;
+	public final List<DNXFunction> functions;
+	public final List<DNXDefinition> definitions;
 	
 	protected final List<DNXBytecode> bytecode;
 	
@@ -43,7 +43,7 @@ public class DNXFile {
 	private boolean compressed;
 	private boolean internalTranslationFile;
 	
-	protected int version;
+	public int version;
 	
 	protected boolean ready;
 	
@@ -86,7 +86,7 @@ public class DNXFile {
 				));
 			}
 			
-			if(version != 2 && version != 3) {
+			if(version < 2 || version > 4) {
 				throw new IllegalStateException("Unsupported DNX version: " + version);
 			}
 			
@@ -191,6 +191,10 @@ public class DNXFile {
 			externalFunctionNames = new ArrayList<>();
 			
 			if(version >= 3) {
+				if(version >= 4) {
+					reader.getInt();
+				}
+				
 				int listSize = reader.getInt();
 				for(int i = 0; i < listSize; i++) {
 					externalFunctionNames.add(strings.get(reader.getInt()));
@@ -339,9 +343,29 @@ public class DNXFile {
 		}
 		
 		if(version >= 3) {
+			
+			ByteArrayOutputStream buffer = null;
+			LittleEndianDataOutputStream orig = null;
+			
+			if(version >= 4) {
+				orig = stream;
+				buffer = new ByteArrayOutputStream();
+				stream = new LittleEndianDataOutputStream(buffer);
+			}
+			
 			stream.writeInt(externalFunctionNames.size());
 			for(DNXString entry : externalFunctionNames) {
 				stream.writeInt(strings.indexOf(entry));
+			}
+			
+			if(version >= 4) {
+				stream.close();
+				byte[] bytes = buffer.toByteArray();
+				
+				orig.writeInt(bytes.length);
+				orig.write(bytes);
+				
+				stream = orig;
 			}
 		}
 		
@@ -391,9 +415,15 @@ public class DNXFile {
 		}
 	}
 	
-	private static <T> List<T> readListOf(Class<T> clazz, ByteBuffer reader) throws NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+	private <T> List<T> readListOf(Class<T> clazz, ByteBuffer reader) throws NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
 		Constructor<T> constructor = clazz.getConstructor(ByteBuffer.class);
 		List<T> out = new ArrayList<>();
+		
+		if(version >= 4) {
+			// Size of list in bytes, unused
+			reader.getInt();
+		}
+		
 		int size = reader.getInt();
 		//System.out.printf("Reading list of %s with %d elements\n", clazz, size);
 		for(int i = 0; i < size; i++) {
@@ -402,7 +432,7 @@ public class DNXFile {
 		return out;
 	}
 	
-	private static <T> List<T> readUnsizedListOf(Class<T> clazz, ByteBuffer reader) throws NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+	private <T> List<T> readUnsizedListOf(Class<T> clazz, ByteBuffer reader) throws NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
 		Constructor<T> constructor = clazz.getConstructor(ByteBuffer.class);
 		List<T> out = new ArrayList<>();
 		int numBytes = reader.getInt();
@@ -415,11 +445,27 @@ public class DNXFile {
 	}
 	
 	private <T extends IDNXSerializable> void writeList(LittleEndianDataOutputStream stream, List<T> list) throws IOException {
+		ByteArrayOutputStream buffer = null;
+		LittleEndianDataOutputStream orig = null;
+		
+		if(version >= 4) {
+			orig = stream;
+			buffer = new ByteArrayOutputStream();
+			stream = new LittleEndianDataOutputStream(buffer);
+		}
+		
 		stream.writeInt(list.size());
-		//System.out.printf("Writing list of %s with %d elements\n", list.isEmpty() ? "???" : list.get(0).getClass(), list.size());
 		for(T element : list) {
 			element.serialize(this, stream);
 			stream.flush();
+		}
+		
+		if(version >= 4) {
+			stream.close();
+			byte[] bytes = buffer.toByteArray();
+			
+			orig.writeInt(bytes.length);
+			orig.write(bytes);
 		}
 	}
 	

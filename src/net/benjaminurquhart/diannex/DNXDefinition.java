@@ -41,6 +41,11 @@ public class DNXDefinition extends DNXCompiled {
 	}
 	
 	@Override
+	public int getLength() {
+		return 12;
+	}
+	
+	@Override
 	public void serialize(DNXFile reader, LittleEndianDataOutputStream buff) throws IOException {
 		buff.writeInt(reader.getStrings().indexOf(name));
 		int strIndex = reader.getStrings().indexOf(reference);

@@ -15,8 +15,8 @@ public class Main {
 		
 		System.out.print(ANSI.RESET);
 		
-		File testFile = new File("test_v3.dxb");
-		DNXFile file = new DNXFile(new File("tsus_demo_v3_format.dxb"));
+		File testFile = new File("test_v4.dxb");
+		DNXFile file = new DNXFile(new File("tsus_demo_v4_format.dxb"));
 		file.write(testFile);
 		file = new DNXFile(testFile);
 		
