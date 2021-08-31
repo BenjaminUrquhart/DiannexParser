@@ -17,6 +17,10 @@ public class Main {
 		
 		File testFile = new File("test_v4.dxb");
 		DNXFile file = new DNXFile(new File("tsus_demo_v4_format.dxb"));
+		if(file.version >= 4) {
+			System.out.println("External functions:");
+			file.externalFunctionNames.forEach(System.out::println);
+		}
 		file.write(testFile);
 		file = new DNXFile(testFile);
 		

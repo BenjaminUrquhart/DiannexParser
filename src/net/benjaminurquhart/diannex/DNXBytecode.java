@@ -199,6 +199,12 @@ public class DNXBytecode implements IDNXSerializable {
 			}
 			else if(opcode == Opcode.CALLEXT) {
 				arg1 = parseArgString(reader, args[0]);
+				if(reader.version >= 4) {
+					DNXString str = reader.strings.get(arg1);
+					if(!reader.externalFunctionNames.contains(str)) {
+						reader.externalFunctionNames.add(str);
+					}
+				}
 			}
 			else {
 				arg1 = parseArgInt(args[0]);
