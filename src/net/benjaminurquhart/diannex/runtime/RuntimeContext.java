@@ -58,6 +58,7 @@ public class RuntimeContext {
 	
 	public ValueStack stack = new ValueStack(provider);
 	public Value[] working = new Value[3];
+	public Map<Integer, Value> flags;
 	public DNXFile file;
 	
 	protected List<Choice> choices;
@@ -229,6 +230,9 @@ public class RuntimeContext {
 		if(!localVars.containsKey(index)) {
 			throw new IllegalStateException("Unknown local var: " + index);
 		}
+		if(flags != null && index < flags.size()) {
+			flags.put(index, localVars.get(index));
+		}
 		localVars.remove(index);
 	}
 	
@@ -282,6 +286,7 @@ public class RuntimeContext {
 		typer = "Narrator";
 		localVars.clear();
 		stack.clear();
+		flags = null;
 		depth = 0;
 		ptr = 0;
 		

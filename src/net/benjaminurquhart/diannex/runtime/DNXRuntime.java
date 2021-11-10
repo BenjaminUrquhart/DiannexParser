@@ -12,6 +12,7 @@ import java.util.concurrent.CompletableFuture;
 
 import net.benjaminurquhart.diannex.DNXBytecode;
 import net.benjaminurquhart.diannex.DNXFile;
+import net.benjaminurquhart.diannex.DNXFlag;
 import net.benjaminurquhart.diannex.DNXBytecode.Opcode;
 import net.benjaminurquhart.diannex.DNXCompiled;
 
@@ -82,9 +83,21 @@ public class DNXRuntime {
 	}
 	
 	private Value internalEval(DNXCompiled entry) {
-		int offset = context.localVars.size();
+		if(context.flags == null) {
+			context.flags = new HashMap<>();
+		}
+		Value value;
+		DNXFlag flag;
 		for(int i = 0; i < entry.flags.size(); i++) {
-			context.setLocal(i + offset, internalEval(entry.flags.get(i).valueBytecode));
+			flag = entry.flags.get(i);
+			if(context.flags.containsKey(i)) {
+				context.setLocal(i, context.flags.get(i));
+			}
+			else {
+				value = internalEval(flag.valueBytecode);
+				context.flags.put(i, value);
+				context.setLocal(i, value);
+			}
 		}
 		if(!context.localVars.isEmpty()) {
 			System.out.printf("%sLocals: %s%s\n", ANSI.GRAY, context.localVars, ANSI.RESET);
@@ -397,8 +410,10 @@ public class DNXRuntime {
 			
 		case CALL:
 			Map<Integer, Value> oldLocalVars = context.localVars;
+			Map<Integer, Value> oldFlags = context.flags;
 			context.localVars = new HashMap<>();
 			context.stack = new ValueStack();
+			context.flags = null;
 			
 			for(int i = 0; i < inst.getSecondArg(); i++) {
 				context.setLocal(i, stack.pop());
@@ -407,6 +422,7 @@ public class DNXRuntime {
 			context.depth++;
 			stack.push(internalEval(context.file.functionByName(inst.parseFirst(context.file, false))));
 			context.localVars = oldLocalVars;
+			context.flags = oldFlags;
 			context.stack = stack;
 			context.ptr = ptr;
 			context.depth--;

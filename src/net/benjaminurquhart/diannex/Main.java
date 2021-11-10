@@ -1,31 +1,38 @@
 package net.benjaminurquhart.diannex;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import net.benjaminurquhart.diannex.DNXCompiler.CompileOutput;
 import net.benjaminurquhart.diannex.runtime.*;
 
 public class Main {
+	
+	public static boolean WAIT_FOR_INPUT = false;
 	
 	public static void main(String[] args) throws Exception {
 		
 		System.out.print(ANSI.RESET);
 		
-		File testFile = new File("test_v4.dxb");
-		DNXFile file = new DNXFile(new File("tsus_demo_v4_format.dxb"));
-		if(file.version >= 4) {
-			System.out.println("External functions:");
-			file.externalFunctionNames.forEach(System.out::println);
-		}
-		file.write(testFile);
-		file = new DNXFile(testFile);
+		CompileOutput out = DNXCompiler.compileFull("scene npc : talked(0, \"talkedToNpc\")\r\n" + 
+				"{\r\n" + 
+				"  sequence $talked\r\n" + 
+				"  {\r\n" + 
+				"    0: \"This is the line of dialogue for the first time talking\"\r\n" + 
+				"    1: \"This is the line of dialogue for the second time talking\"\r\n" + 
+				"  }\r\n" + 
+				"  \"This line happens always, after either other line\"\r\n" + 
+				"  if getFlag(\"beatGame\")\r\n" + 
+				"    \"Congratulations on beating the game by the way\"\r\n" + 
+				"}");
 		
+		DNXFile file = out.compileFile;
+		DNXScene scene = out.scenes.get(0);
 		
-		DNXScene scene = file.sceneByName("asg.ruined4");
+		//System.out.println(scene.disassemble(file));
 		
 		Pattern pattern = Pattern.compile("(`([^`]+)`)", Pattern.CASE_INSENSITIVE);
 		
@@ -68,9 +75,15 @@ public class Main {
 				System.out.println();
 				return;
 			}
-			RuntimeContext.waitForInput();
+			if(WAIT_FOR_INPUT) {
+				RuntimeContext.waitForInput();
+			}
+			else {
+				System.out.println();
+			}
 		});
 		
+		System.out.println("Return value: " + runtime.eval(scene).get());
 		System.out.println("Return value: " + runtime.eval(scene).get());
 	}
 	
