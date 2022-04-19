@@ -164,6 +164,14 @@ public class DNXRuntime {
 				}
 				System.err.println("Stack: " + stackStr);
 				
+				if(!context.localVars.isEmpty()) {
+					System.err.println("Locals:");
+					context.getLocals()
+						   .stream()
+						   .sorted()
+						   .forEach(index -> System.err.printf("%d: %s\n", index, context.getLocal(index)));
+				}
+				
 				if(e instanceof RuntimeException) {
 					throw (RuntimeException)e;
 				}
