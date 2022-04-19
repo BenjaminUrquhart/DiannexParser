@@ -62,6 +62,8 @@ public class DNXFile {
 		entryPoints = new ArrayList<>();
 		externalFunctionNames = new ArrayList<>();
 		
+		version = 4;
+		
 		ready = true;
 	}
 

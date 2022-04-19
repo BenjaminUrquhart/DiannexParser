@@ -72,7 +72,7 @@ public class DNXRuntime {
 	}
 	
 	public CompletableFuture<Value> eval(DNXCompiled entry) {
-		return  CompletableFuture.supplyAsync(() -> internalEval(entry));
+		return CompletableFuture.supplyAsync(() -> internalEval(entry));
 	}
 	
 	public CompletableFuture<Value> eval(List<DNXBytecode> instructions) {
@@ -306,25 +306,44 @@ public class DNXRuntime {
 			if((working[0].get() instanceof String) || (working[1].get() instanceof String)) {
 				stack.pushObj(working[0].get(String.class) + working[1].get(String.class));
 			}
-			else {
+			else if(working[0].isFloatingPoint() || working[1].isFloatingPoint()) {
 				stack.pushObj(working[0].get(double.class) + working[1].get(double.class));
+			}
+			else {
+				stack.pushObj(Math.addExact(working[0].get(long.class), working[1].get(long.class)));
 			}
 			break;
 		case SUB:
 			context.populate(2);
-			stack.pushObj(working[0].get(double.class) - working[1].get(double.class));
+			if(working[0].isFloatingPoint() || working[1].isFloatingPoint()) {
+				stack.pushObj(working[0].get(double.class) - working[1].get(double.class));
+			}
+			else {
+				stack.pushObj(Math.subtractExact(working[0].get(long.class), working[1].get(long.class)));
+			}
 			break;
 		case MUL:
 			context.populate(2);
-			stack.pushObj(working[0].get(double.class) * working[1].get(double.class));
+			if(working[0].isFloatingPoint() || working[1].isFloatingPoint()) {
+				stack.pushObj(working[0].get(double.class) * working[1].get(double.class));
+			}
+			else {
+				stack.pushObj(Math.multiplyExact(working[0].get(long.class), working[1].get(long.class)));
+			}
 			break;
 		case DIV:
+			// Left unchanged since we don't want integer division
 			context.populate(2);
 			stack.pushObj(working[0].get(double.class) / working[1].get(double.class));
 			break;
 		case MOD:
 			context.populate(2);
-			stack.pushObj(working[0].get(double.class) % working[1].get(double.class));
+			if(working[0].isFloatingPoint() || working[1].isFloatingPoint()) {
+				stack.pushObj(working[0].get(double.class) % working[1].get(double.class));
+			}
+			else {
+				stack.pushObj(working[0].get(long.class) % working[1].get(long.class));
+			}
 			break;
 		case NEG:
 			context.populate(1);
@@ -332,32 +351,32 @@ public class DNXRuntime {
 			break;
 		case INV:
 			context.populate(1);
-			stack.pushObj(working[0].get(int.class) == 0 ? 1 : 0);
+			stack.pushObj(working[0].get(long.class) == 0 ? 1 : 0);
 			break;
 			
 		case BITLS:
 			context.populate(2);
-			stack.pushObj(working[0].get(int.class) << working[1].get(int.class));
+			stack.pushObj(working[0].get(long.class) << working[1].get(long.class));
 			break;
 		case BITRS:
 			context.populate(2);
-			stack.pushObj(working[0].get(int.class) >> working[1].get(int.class));
+			stack.pushObj(working[0].get(long.class) >> working[1].get(long.class));
 			break;
 		case BITAND:
 			context.populate(2);
-			stack.pushObj(working[0].get(int.class) & working[1].get(int.class));
+			stack.pushObj(working[0].get(long.class) & working[1].get(long.class));
 			break;
 		case BITOR:
 			context.populate(2);
-			stack.pushObj(working[0].get(int.class) | working[1].get(int.class));
+			stack.pushObj(working[0].get(long.class) | working[1].get(long.class));
 			break;
 		case BITXOR:
 			context.populate(2);
-			stack.pushObj(working[0].get(int.class) ^ working[1].get(int.class));
+			stack.pushObj(working[0].get(long.class) ^ working[1].get(long.class));
 			break;
 		case BITNEG:
 			context.populate(1);
-			stack.pushObj(~working[0].get(int.class));
+			stack.pushObj(~working[0].get(long.class));
 			break;
 			
 		case POW:
@@ -371,19 +390,39 @@ public class DNXRuntime {
 			break;
 		case CMPGT:
 			context.populate(2);
-			stack.pushObj(working[0].get(double.class) > working[1].get(double.class));
+			if(working[0].isFloatingPoint() || working[1].isFloatingPoint()) {
+				stack.pushObj(working[0].get(double.class) > working[1].get(double.class));
+			}
+			else {
+				stack.pushObj(working[0].get(long.class) > working[1].get(long.class));
+			}
 			break;
 		case CMPLT:
 			context.populate(2);
-			stack.pushObj(working[0].get(double.class) < working[1].get(double.class));
+			if(working[0].isFloatingPoint() || working[1].isFloatingPoint()) {
+				stack.pushObj(working[0].get(double.class) < working[1].get(double.class));
+			}
+			else {
+				stack.pushObj(working[0].get(long.class) < working[1].get(long.class));
+			}
 			break;
 		case CMPGTE:
 			context.populate(2);
-			stack.pushObj(working[0].get(double.class) >= working[1].get(double.class));
+			if(working[0].isFloatingPoint() || working[1].isFloatingPoint()) {
+				stack.pushObj(working[0].get(double.class) >= working[1].get(double.class));
+			}
+			else {
+				stack.pushObj(working[0].get(long.class) >= working[1].get(long.class));
+			}
 			break;
 		case CMPLTE:
 			context.populate(2);
-			stack.pushObj(working[0].get(double.class) <= working[1].get(double.class));
+			if(working[0].isFloatingPoint() || working[1].isFloatingPoint()) {
+				stack.pushObj(working[0].get(double.class) <= working[1].get(double.class));
+			}
+			else {
+				stack.pushObj(working[0].get(long.class) <= working[1].get(long.class));
+			}
 			break;
 		case CMPNEQ:
 			context.populate(2);

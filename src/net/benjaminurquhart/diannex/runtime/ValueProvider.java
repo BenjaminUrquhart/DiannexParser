@@ -43,7 +43,7 @@ public class ValueProvider {
 	}
 	
 	public boolean isInUse(Value value) {
-		return true; //inUse.contains(value);
+		return false; //inUse.contains(value);
 	}
 	
 	public void reclaim() {/*

@@ -1,12 +1,13 @@
 package net.benjaminurquhart.diannex;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import net.benjaminurquhart.diannex.DNXCompiler.CompileOutput;
 import net.benjaminurquhart.diannex.runtime.*;
 
 public class Main {
@@ -17,20 +18,14 @@ public class Main {
 		
 		System.out.print(ANSI.RESET);
 		
-		CompileOutput out = DNXCompiler.compileFull("scene npc : talked(0, \"talkedToNpc\")\r\n" + 
-				"{\r\n" + 
-				"  sequence $talked\r\n" + 
-				"  {\r\n" + 
-				"    0: \"This is the line of dialogue for the first time talking\"\r\n" + 
-				"    1: \"This is the line of dialogue for the second time talking\"\r\n" + 
-				"  }\r\n" + 
-				"  \"This line happens always, after either other line\"\r\n" + 
-				"  if getFlag(\"beatGame\")\r\n" + 
-				"    \"Congratulations on beating the game by the way\"\r\n" + 
-				"}");
+		DNXFile file = new DNXFile();
+		DNXScene scene = new DNXScene(file.newString("scene0"));
+		file.addScene(scene);
 		
-		DNXFile file = out.compileFile;
-		DNXScene scene = out.scenes.get(0);
+		scene.instructions = DNXAssembler.assemble(Files.readString(new File("test.asm").toPath()), file);
+		
+		//DNXFile file = new DNXFile(new File("tsus_demo_v4_format.dxb"));
+		//DNXScene scene = file.sceneByName("tem.battle");
 		
 		//System.out.println(scene.disassemble(file));
 		
@@ -84,7 +79,7 @@ public class Main {
 		});
 		
 		System.out.println("Return value: " + runtime.eval(scene).get());
-		System.out.println("Return value: " + runtime.eval(scene).get());
+		//System.out.println("Return value: " + runtime.eval(scene).get());
 	}
 	
 	
