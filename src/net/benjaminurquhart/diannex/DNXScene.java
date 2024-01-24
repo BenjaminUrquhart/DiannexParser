@@ -17,5 +17,6 @@ public class DNXScene extends DNXCompiled {
 	public DNXScene(DNXString name) {
 		this.name = name;
 		this.instructions.add(new DNXBytecode(null, Opcode.EXIT));
+		this.markProcessed();
 	}
 }

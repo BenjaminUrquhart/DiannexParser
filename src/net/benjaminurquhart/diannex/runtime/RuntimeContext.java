@@ -64,8 +64,8 @@ public class RuntimeContext {
 	protected List<Choice> choices;
 	protected Choicer choicer;
 	
-	protected boolean choiceBeg, didTextRun, choiced;
-	protected int ptr, depth;
+	public boolean choiceBeg, didTextRun, choiced, enforcePointerBounds;
+	public int ptr, depth;
 	
 	public RuntimeContext(DNXRuntime runtime, DNXFile file) {
 		registerExternalFunctions(ExternalFunction.getFrom(this));
@@ -76,6 +76,10 @@ public class RuntimeContext {
 	@ExternalDNXFunction("char")
 	protected void charImpl(String typer) {
 		this.typer = typer;
+	}
+	
+	public void enforcePointerBounds(boolean enforce) {
+		enforcePointerBounds = enforce;
 	}
 	
 	public void setMissingExternalFunctionHandler(BiFunction<String, Object[], ?> handler) {
@@ -182,6 +186,13 @@ public class RuntimeContext {
 		return choiceBeg;
 	}
 	
+	public void insertChoice(String name, double percentage, int jump) {
+		if(!choiceBeg) {
+			throw new IllegalStateException("Cannot insert choice outside of choice mode");
+		}
+		choicer.addChoice(name, percentage, ptr + jump);
+	}
+	
 	public void setTextrunHandler(BiConsumer<RuntimeContext, String> handler) {
 		if(handler == null) {
 			textrunHandler = defaultTextrunHandler;
@@ -200,7 +211,9 @@ public class RuntimeContext {
 				throw new IllegalStateException("Unknown global var: " + name);
 			}
 		}
-		return globalVars.get(name);
+		Value out = globalVars.get(name);
+		System.out.printf("%sGet globalvar %s -> %s%s\n", ANSI.GRAY, name, out.get(), ANSI.RESET);
+		return out;
 	}
 	
 	public <T> T getGlobal(String name, Class<T> type) {

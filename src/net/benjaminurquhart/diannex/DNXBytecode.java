@@ -2,6 +2,7 @@ package net.benjaminurquhart.diannex;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -167,6 +168,13 @@ public class DNXBytecode implements IDNXSerializable {
 		this.opcode = opcode;
 		determineType();
 		
+		int argsNeeded = this.getArgCount();
+		if(args.length != argsNeeded) {
+			throw new IllegalArgumentException(
+					"Invalid number of arguments for opcode " + opcode + " (need " + argsNeeded + ", got " + args.length + " " + Arrays.deepToString(args) + ")"
+			);
+		}
+		
 		switch(type) {
 		case ONE:
 			if(STRING_RESOLVE.contains(opcode)) {
@@ -215,6 +223,15 @@ public class DNXBytecode implements IDNXSerializable {
 			argDouble = parseArgDouble(args[0]);
 			break;
 		default: break;
+		}
+	}
+	
+	private int getArgCount() {
+		switch(type) {
+		case FLOAT:
+		case ONE: return 1;
+		case TWO: return 2;
+		default:  return 0;
 		}
 	}
 	

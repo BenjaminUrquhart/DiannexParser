@@ -191,12 +191,97 @@ public class Value {
 		throw e;
 	}
 	
+	public Object add(Value other) {
+		if((value instanceof String) || (other.value instanceof String)) {
+			return this.get(String.class) + other.get(String.class);
+		}
+		if(!this.useDouble(other)) {
+			// Math.addExact
+			long x = this.get(long.class);
+			long y = other.get(long.class);
+			
+			long r = x + y;
+			
+			if(((x ^ r) & (y ^ r)) >= 0) {
+				return r;
+			}
+		}
+		return this.get(double.class) + other.get(double.class);
+	}
+	
+	public Object sub(Value other) {
+		if(!this.useDouble(other)) {
+			// Math.subtractExact
+			long x = this.get(long.class);
+			long y = other.get(long.class);
+			
+			long r = x - y;
+			
+			if(((x ^ y) & (x ^ r)) >= 0) {
+				return r;
+			}
+		}
+		return this.get(double.class) - other.get(double.class);
+	}
+	
+	public Object mul(Value other) {
+		if(value instanceof String) {
+			if(other.get(int.class) < 0) {
+				return "";
+			}
+			return this.get(String.class).repeat(other.get(int.class));
+		}
+		if(!this.useDouble(other)) {
+			long x = this.get(long.class);
+			long y = other.get(long.class);
+			
+			// Math.multiplyExact
+	        long r = x * y;
+	        long ax = Math.abs(x);
+	        long ay = Math.abs(y);
+	        
+	        if((ax | ay) >>> 31 == 0) {
+	        	return r;
+	        }
+	        if (!((y != 0 && (r / y) != x) || (x == Long.MIN_VALUE && y == -1))) {
+	        	return r;
+	        }
+		}
+		return this.get(double.class) * other.get(double.class);
+	}
+	
+	public Object div(Value other) {
+		
+		if(!this.useDouble(other)) {
+			long x = this.get(long.class);
+			long y = other.get(long.class);
+			
+			if(x % y == 0) {
+				return x / y;
+			}
+		}
+		return this.get(double.class) / other.get(double.class);
+	}
+	
+	private boolean useDouble(Value other) {
+		return this.isFloatingPoint() || other.isFloatingPoint();
+	}
+	
 	public Value clone() {
 		return new Value(value);
 	}
 	
 	@Override
 	public String toString() {
-		return String.valueOf(value);
+		if(value == null || this.containsNumber()) {
+			return String.valueOf(value);
+		}
+		else if(value instanceof String) {
+			return '"' + value.toString() + '"';
+		}
+		else if(value.getClass().isArray()) {
+			return Arrays.deepToString((Object[])value);
+		}
+		return String.format("{%s (%s)}", value.getClass().getName(), value);
 	}
 }

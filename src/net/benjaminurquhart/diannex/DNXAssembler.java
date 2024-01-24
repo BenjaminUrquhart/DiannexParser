@@ -20,26 +20,19 @@ public class DNXAssembler {
 
 	public static List<DNXBytecode> assemble(String asm, DNXFile reader) {
 		List<DNXBytecode> out = new ArrayList<>();
-		Object[] args = new Object[2];
 		String[] tokens;
 		Opcode opcode;
 		for(String line : asm.split("\r?\n")) {
 			if(line.startsWith(";") || line.isBlank()) {
 				continue;
 			}
-			tokens = parseTokens(line);
-			if(tokens.length == 0) {
-				continue;
-			}
-			else if(tokens.length > 3) {
-				throw new AssembleException("Too many arguments provided; expected at most 2, got " + (tokens.length - 1) + " (inst: " + line + ", tokens: " + Arrays.toString(tokens) + ")", null);
-			}
 			try {
-				opcode = Opcode.valueOf(tokens[0].toUpperCase());
-				for(int i = 1; i < tokens.length; i++) {
-					args[i-1] = tokens[i];
+				tokens = parseTokens(line);
+				if(tokens.length == 0) {
+					continue;
 				}
-				out.add(new DNXBytecode(reader, opcode, args));
+				opcode = Opcode.valueOf(tokens[0].toUpperCase());
+				out.add(new DNXBytecode(reader, opcode, (Object[])Arrays.copyOfRange(tokens, 1, tokens.length)));
 			}
 			catch(Exception e) {
 				throw new AssembleException("Asssembly failed", e);
@@ -72,24 +65,32 @@ public class DNXAssembler {
 				}
 				else {
 					unescape = true;
+					token.append(c);
+					continue;
 				}
 			}
 			if(c == ';' && !inString) {
 				break;
 			}
-			else if(c == '"' && !escaped) {
+			else if(c == '"') {
 				append.accept(inString);
 				inString = !inString;
 			}
 			else if(c == '\\') {
 				escaped = true;
 			}
-			else if(c == ' ' && !inString && !escaped) {
+			else if(c == ' ' && !inString) {
 				append.accept(false);
 			}
 			else {
 				token.append(c);
 			}
+		}
+		if(inString) {
+			throw new IllegalStateException("unclosed string: " + line);
+		}
+		if(escaped && !unescape) {
+			throw new IllegalStateException("trailing unescaped backslash: " + line + " (raw newlines are not supported)");
 		}
 		append.accept(false);
 		return out.toArray(String[]::new);

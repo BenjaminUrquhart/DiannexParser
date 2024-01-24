@@ -99,13 +99,23 @@ public class DNXRuntime {
 				context.setLocal(i, value);
 			}
 		}
+		context.stack.clear();
 		if(!context.localVars.isEmpty()) {
 			System.out.printf("%sLocals: %s%s\n", ANSI.GRAY, context.localVars, ANSI.RESET);
+		}
+		if(!context.enforcePointerBounds) {
+			List<DNXBytecode> instructions = context.file.getBytecode();
+			int start = instructions.indexOf(entry.instructions.get(0));
+			return internalEval(instructions, start);
 		}
 		return internalEval(entry.instructions);
 	}
 	
 	private Value internalEval(List<DNXBytecode> instructions) {
+		return internalEval(instructions, 0);
+	}
+	
+	private Value internalEval(List<DNXBytecode> instructions, int startPtr) {
 		if(context.depth >= MAX_CALLSTACK_DEPTH) {
 			throw new IllegalStateException("Maximum callstack depth reached (" + MAX_CALLSTACK_DEPTH + ")");
 		}
@@ -116,7 +126,7 @@ public class DNXRuntime {
 		
 		List<String> prevInstructions = new ArrayList<>();
 		
-		for(int ptr = 0; ptr < insts.length; ptr++) {
+		for(int ptr = startPtr; ptr < insts.length; ptr++) {
 			
 			while(suspended);
 			
@@ -311,38 +321,19 @@ public class DNXRuntime {
 		
 		case ADD:
 			context.populate(2);
-			if((working[0].get() instanceof String) || (working[1].get() instanceof String)) {
-				stack.pushObj(working[0].get(String.class) + working[1].get(String.class));
-			}
-			else if(working[0].isFloatingPoint() || working[1].isFloatingPoint()) {
-				stack.pushObj(working[0].get(double.class) + working[1].get(double.class));
-			}
-			else {
-				stack.pushObj(Math.addExact(working[0].get(long.class), working[1].get(long.class)));
-			}
+			stack.pushObj(working[0].add(working[1]));
 			break;
 		case SUB:
 			context.populate(2);
-			if(working[0].isFloatingPoint() || working[1].isFloatingPoint()) {
-				stack.pushObj(working[0].get(double.class) - working[1].get(double.class));
-			}
-			else {
-				stack.pushObj(Math.subtractExact(working[0].get(long.class), working[1].get(long.class)));
-			}
+			stack.pushObj(working[0].sub(working[1]));
 			break;
 		case MUL:
 			context.populate(2);
-			if(working[0].isFloatingPoint() || working[1].isFloatingPoint()) {
-				stack.pushObj(working[0].get(double.class) * working[1].get(double.class));
-			}
-			else {
-				stack.pushObj(Math.multiplyExact(working[0].get(long.class), working[1].get(long.class)));
-			}
+			stack.pushObj(working[0].mul(working[1]));
 			break;
 		case DIV:
-			// Left unchanged since we don't want integer division
 			context.populate(2);
-			stack.pushObj(working[0].get(double.class) / working[1].get(double.class));
+			stack.pushObj(working[0].div(working[1]));
 			break;
 		case MOD:
 			context.populate(2);
@@ -505,15 +496,12 @@ public class DNXRuntime {
 	}
 	
 	private String stackToStr(ValueStack stack) {
-		Object[] objs = new Object[stack.size()];
+		Value[] objs = new Value[stack.size()];
 		for(int i = 0; i < objs.length; i++) {
-			objs[i] = stack.pop(Object.class);
+			objs[i] = stack.pop();
 		}
 		for(int i = objs.length - 1; i >= 0; i --) {
 			stack.pushObj(objs[i]);
-			if(objs[i] != null && !((objs[i] instanceof Number) || (objs[i].getClass().isArray()))) {
-				objs[i] = '"' + objs[i].toString() + '"';
-			}
 		}
 		return Arrays.deepToString(objs);
 	}

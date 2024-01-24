@@ -62,6 +62,10 @@ public abstract class DNXCompiled implements IDNXSerializable {
 		return flags.size() * 8 + 10;
 	}
 	
+	protected void markProcessed() {
+		processed = true;
+	}
+	
 	@Override
 	public void serialize(DNXFile reader, LittleEndianDataOutputStream buff) throws IOException {
 		buff.writeInt(reader.getStrings().indexOf(name));

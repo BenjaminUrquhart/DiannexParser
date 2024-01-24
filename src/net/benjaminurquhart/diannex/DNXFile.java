@@ -170,8 +170,11 @@ public class DNXFile {
 				}
 				
 				for(DNXFunction entry : functions) {
-					for(int i = 0; i < entry.bytecodeIndicies.size(); i++) {
-						entry.bytecodeIndicies.set(i, indexMapping.get(entry.bytecodeIndicies.get(i)));
+					for(int i = 0, ind; i < entry.bytecodeIndicies.size(); i++) {
+						ind = entry.bytecodeIndicies.get(i);
+						if(ind != -1) {
+							entry.bytecodeIndicies.set(i, indexMapping.get(ind));
+						}
 					}
 				}
 				
@@ -279,6 +282,11 @@ public class DNXFile {
 			entry.offset = offset;
 			offset += entry.getLength();
 		}
+	}
+	
+	public List<DNXBytecode> getBytecode() {
+		this.regenerateBytecodeList();
+		return Collections.unmodifiableList(bytecode);
 	}
 	
 	public void write(File file) throws IOException {
@@ -392,7 +400,7 @@ public class DNXFile {
 			
 			int compressedSize = 0, read;
 			byte[] bytes = new byte[1024];
-			while((read = deflater.deflate(bytes)) > 0) {
+			while((read = deflater.deflate(bytes)) > 0 && !deflater.needsInput()) {
 				compressedSize += read;
 				rawStream.write(bytes, 0, read);
 				
@@ -543,6 +551,14 @@ public class DNXFile {
 	
 	public List<DNXScene> getScenes() {
 		return Collections.unmodifiableList(scenes);
+	}
+	
+	public List<DNXCompiled> getEntries() {
+		List<DNXCompiled> out = new ArrayList<>();
+		out.addAll(definitions);
+		out.addAll(functions);
+		out.addAll(scenes);
+		return Collections.unmodifiableList(out);
 	}
 	
 	public void addTranslationString(DNXString string) {
