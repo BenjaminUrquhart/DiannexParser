@@ -94,7 +94,6 @@ public class RuntimeContext {
 	public Value callExternal(String name, int argc) {
 		ExternalFunction function = externalFunctions.get(name);
 		
-		Object[] args = new Object[argc];
 		Class<?>[] types;
 		
 		if(function == null) {
@@ -105,14 +104,24 @@ public class RuntimeContext {
 			 types = function.getArgumentTypes();
 		}
 		
+		Object[] args = new Object[Math.max(argc, types.length)];
+		
 		for(int i = 0; i < argc; i++) {
 			args[i] = stack.pop(types[i]);
+		}
+		for(int i = 0; i < args.length; i++) {
+			if(args[i] == null) {
+				args[i] = Value.NULL.get(types[i]);
+			}
 		}
 		
 		if(function == null) {
 			return provider.get(missingFunctionHandler.apply(name, args));
 		}
-		if(function.getArgumentCount() != argc) {
+		if(function.isVarArg() && function.getArgumentCount() < argc) {
+			throw new IllegalArgumentException("Bad argument count for external function " + name + "; expected at most " + function.getArgumentCount() + ", got " + argc);
+		}
+		else if(!function.isVarArg() && function.getArgumentCount() != argc) {
 			throw new IllegalArgumentException("Bad argument count for external function " + name + "; expected " + function.getArgumentCount() + ", got " + argc);
 		}
 		

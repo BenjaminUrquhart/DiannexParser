@@ -32,6 +32,7 @@ public class ExternalFunction {
 					name = method.getName();
 				}
 				
+				boolean varArg = method.isAnnotationPresent(VarArg.class);
 				if(Modifier.isStatic(method.getModifiers())) {
 					func = new ExternalFunction(null, method);
 				}
@@ -42,6 +43,7 @@ public class ExternalFunction {
 					System.err.println("Warning: could not access annotated method " + method);
 					return;
 				}
+				func.isVarArg = varArg;
 				func.name = name;
 				out.add(func);
 			}
@@ -66,7 +68,7 @@ public class ExternalFunction {
 	private Method function;
 	private String name;
 	
-	private boolean takesContext;
+	private boolean takesContext, isVarArg;
 	
 	protected ExternalFunction() {
 		this.name = "unnamedFunction" + hashCode();
@@ -152,6 +154,10 @@ public class ExternalFunction {
 		return takesContext;
 	}
 	
+	public boolean isVarArg() {
+		return isVarArg;
+	}
+	
 	public String getName() {
 		return name;
 	}
@@ -164,7 +170,7 @@ public class ExternalFunction {
 			return provider.get(lambdaFunction.apply(args[0]));
 		}
 		else if(function != null) {
-			if(args.length != function.getParameterCount()) {
+			if(!isVarArg && args.length != function.getParameterCount()) {
 				throw new IllegalStateException("Expected " + function.getParameterCount() + " argument(s), got " + args.length);
 			}
 			try {

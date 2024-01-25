@@ -9,10 +9,18 @@ import java.util.Map;
 
 public class Value {
 	
+	public static final Value NULL;
+	
 	private static Map<Class<?>, Method> numGetters = new HashMap<>();
 	
 	private Map<Class<?>, Object> castCache;
+	private boolean locked;
 	private Object value;
+	
+	static {
+		NULL = new Value(null);
+		NULL.locked = true;
+	}
 	
 	public Value(Object value) {
 		castCache = Collections.synchronizedMap(new HashMap<>());
@@ -31,6 +39,9 @@ public class Value {
 	}
 	
 	public void update(Object obj) {
+		if(locked) {
+			throw new IllegalStateException("value marked as immutable");
+		}
 		castCache.clear();
 		if(obj instanceof Boolean) {
 			value = (long)(((boolean)obj) ? 1 : 0);
@@ -86,6 +97,13 @@ public class Value {
 	private <T> T getInternal(Class<T> clazz) {
 		if(value == null || value.getClass() == clazz) {
 			//System.out.printf("%sGet '%s' (%s)%s\n", ANSI.GRAY, value, value == null ? null : value.getClass(), ANSI.RESET);
+			if(clazz.isPrimitive()) {
+				// Certified type boxing moment
+				if(clazz == boolean.class) {
+					return (T)Boolean.valueOf(false);
+				}
+				return clazz.cast(0);
+			}
 			return clazz.cast(value);
 		}
 		Class<?> valClazz = value.getClass();

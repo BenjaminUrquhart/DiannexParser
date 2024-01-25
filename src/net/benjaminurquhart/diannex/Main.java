@@ -18,10 +18,10 @@ import net.benjaminurquhart.diannex.runtime.*;
 
 public class Main {
 	
-	public static boolean WAIT_FOR_INPUT = false;
+	public static boolean WAIT_FOR_INPUT = true;
 	
 	public static boolean OFFSET_LOOKUP = false;
-	public static boolean DUMP_ORDER = true;
+	public static boolean DUMP_ORDER = false;
 	
 	public static void main(String[] args) throws Exception {
 		
@@ -30,7 +30,7 @@ public class Main {
 		File data = new File("game.dxb");
 		DNXFile file = new DNXFile(data);
 		
-		dump(file);
+		//dump(file);
 		
 		if(OFFSET_LOOKUP) {
 			int offset = 0;
@@ -93,7 +93,7 @@ public class Main {
 			return;
 		}
 		
-		DNXScene scene = file.sceneByName("star.rm23");
+		DNXScene scene = file.sceneByName("star.boogiefight");
 		
 		Pattern pattern = Pattern.compile("(`([^`]+)`)", Pattern.CASE_INSENSITIVE);
 		
@@ -111,8 +111,8 @@ public class Main {
 			return 0;
 		});
 		
-		TSUSFunctions.setPersistFlag("st_kk_outfit", -1);
-		TSUSFunctions.setFlag("plot", 58);
+		TSUSFunctions.setFlag("st_bp", 11);
+		//TSUSFunctions.setFlag("plot", 58);
 		
 		context.setTextrunHandler((ctx, text) -> {
 			//System.out.printf("%s%s%s\n", ANSI.GRAY, text, ANSI.RESET);
@@ -184,20 +184,22 @@ public class Main {
 		
 		private static Map<String, Integer> flags = new HashMap<>(), persistFlags = new HashMap<>();
 		
-		public static boolean isGeno, isEvac, skipWait = true;
+		public static boolean isGeno, isEvac, skipWait = false;
 		
 		@ExternalDNXFunction("xirandom")
 		public static int randomRange(int lower, int upper) {
 			return (int)((upper - lower + 1) * Math.random()) + lower;
 		}
 		
+		@VarArg
 		@ExternalDNXFunction
-		public static void wait(int seconds) throws Exception {
+		public static void wait(int seconds, boolean skippable) throws Exception {
 			if(!skipWait) Thread.sleep(seconds * 1000);
 		}
 		
+		@VarArg
 		@ExternalDNXFunction
-		public static void waitFrames(int frames) throws Exception {
+		public static void waitFrames(int frames, boolean skippable) throws Exception {
 			if(!skipWait) Thread.sleep((int)(frames * 33.3333));
 		}
 		
