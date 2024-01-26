@@ -2,6 +2,7 @@ package net.benjaminurquhart.diannex.runtime;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -24,10 +25,11 @@ public class RuntimeContext {
 			System.out.println();
 			return;
 		}
-		waitForInput();
+		//waitForInput();
 	};
 	
-	public static void waitForInput() {
+	public void waitForInput() {
+		waitingForInput = true;
 		try {
 			while(System.in.available() == 0) {
 				Thread.sleep(10);
@@ -39,6 +41,7 @@ public class RuntimeContext {
 		catch(Exception e) {
 			e.printStackTrace();
 		}
+		waitingForInput = false;
 	}
 	
 	private BiFunction<String, Object[], ?> missingFunctionHandler = defaultMissingFunctionHandler;
@@ -49,12 +52,14 @@ public class RuntimeContext {
 	private boolean autodefineGlobals, headless, verbose;
 	private String typer = "Narrator";
 	
-	public Map<Integer, Value> localVars = new HashMap<>();
-	public Map<String, Value> globalVars = new HashMap<>();
+	public Map<Integer, Value> localVars = Collections.synchronizedMap(new HashMap<>());
+	public Map<String, Value> globalVars = Collections.synchronizedMap(new HashMap<>());
 	public ValueProvider provider = new ValueProvider();
 	public Value saveRegister;
 	
 	public final DNXRuntime runtime;
+	
+	public RuntimeContext parent;
 	
 	public ValueStack stack = new ValueStack(provider);
 	public Value[] working = new Value[3];
@@ -64,7 +69,9 @@ public class RuntimeContext {
 	protected List<Choice> choices;
 	protected Choicer choicer;
 	
-	public boolean choiceBeg, didTextRun, choiced, enforcePointerBounds;
+	private volatile boolean waitingForInput, didNewline;
+	
+	public boolean choiceBeg, didTextRun, choiced, enforcePointerBounds, isParallelScene;
 	public int ptr, depth;
 	
 	public RuntimeContext(DNXRuntime runtime, DNXFile file) {
@@ -160,6 +167,10 @@ public class RuntimeContext {
 		function.setValueProvider(provider);
 	}
 	
+	public BiFunction<String, Object[], ?> getMissingExternalFunctionHandler() {
+		return missingFunctionHandler;
+	}
+	
 	public ExternalFunction getExternalFunction(String name) {
 		return externalFunctions.get(name);
 	}
@@ -168,8 +179,12 @@ public class RuntimeContext {
 		return new HashSet<>(externalFunctions.values());
 	}
 	
-	public boolean autodefineGlobals(boolean state) {
-		return autodefineGlobals = state;
+	public void autodefineGlobals(boolean state) {
+		autodefineGlobals = state;
+	}
+	
+	public boolean autodefineGlobals() {
+		return autodefineGlobals;
 	}
 	
 	public void makeHeadless() {
@@ -213,7 +228,7 @@ public class RuntimeContext {
 	public Value getGlobal(String name) {
 		if(!globalVars.containsKey(name)) {
 			if(autodefineGlobals) {
-				System.out.printf("%sAutodefining globalvar %s as 0%s\n", ANSI.GRAY, name, ANSI.RESET);
+				System.out.printf("%s%sAutodefining globalvar %s as 0%s\n", ANSI.GRAY, parallelString(), name, ANSI.RESET);
 				setGlobal(name, 0);
 			}
 			else {
@@ -221,7 +236,7 @@ public class RuntimeContext {
 			}
 		}
 		Value out = globalVars.get(name);
-		System.out.printf("%sGet globalvar %s -> %s%s\n", ANSI.GRAY, name, out.get(), ANSI.RESET);
+		System.out.printf("%s%sGet globalvar %s -> %s%s\n", ANSI.GRAY, parallelString(), name, out.get(), ANSI.RESET);
 		return out;
 	}
 	
@@ -249,10 +264,7 @@ public class RuntimeContext {
 	}
 	
 	public void freeLocal(int index) {
-		if(!localVars.containsKey(index)) {
-			throw new IllegalStateException("Unknown local var: " + index);
-		}
-		if(flags != null && index < flags.size()) {
+		if(localVars.containsKey(index) && flags != null && index < flags.size()) {
 			flags.put(index, localVars.get(index));
 		}
 		localVars.remove(index);
@@ -332,6 +344,18 @@ public class RuntimeContext {
 			}
 			working[i] = null;
 		}
+	}
+	
+	public String parallelString() {
+		if(isParallelScene) {
+			if(!didNewline && parent.waitingForInput) {
+				didNewline = true;
+				return "\n[PARALLEL SCENE]: ";
+			}
+			return "[PARALLEL SCENE]: ";
+		}
+		didNewline = false;
+		return "";
 	}
 	
 	@Override

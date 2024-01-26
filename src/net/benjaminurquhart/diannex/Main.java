@@ -93,7 +93,7 @@ public class Main {
 			return;
 		}
 		
-		DNXScene scene = file.sceneByName("star.boogiefight");
+		DNXScene scene = file.sceneByName("stars.cb_battle_g");
 		
 		Pattern pattern = Pattern.compile("(`([^`]+)`)", Pattern.CASE_INSENSITIVE);
 		
@@ -111,7 +111,8 @@ public class Main {
 			return 0;
 		});
 		
-		TSUSFunctions.setFlag("st_bp", 11);
+		TSUSFunctions.setPersistFlag("mgd_43", 7);
+		//TSUSFunctions.setFlag("st_kk_outfit", -1);
 		//TSUSFunctions.setFlag("plot", 58);
 		
 		context.setTextrunHandler((ctx, text) -> {
@@ -149,7 +150,7 @@ public class Main {
 				return;
 			}
 			if(WAIT_FOR_INPUT) {
-				RuntimeContext.waitForInput();
+				context.waitForInput();
 			}
 			else {
 				System.out.println();
@@ -186,6 +187,11 @@ public class Main {
 		
 		public static boolean isGeno, isEvac, skipWait = false;
 		
+		@ExternalDNXFunction
+		public static int itemsGetArmor() {
+			return 0;
+		}
+		
 		@ExternalDNXFunction("xirandom")
 		public static int randomRange(int lower, int upper) {
 			return (int)((upper - lower + 1) * Math.random()) + lower;
@@ -216,13 +222,13 @@ public class Main {
 			return val;
 		}
 		
-		@ExternalDNXFunction("setPersistFlagGlobal")
+		@ExternalDNXFunction("setPersistFlag")
 		public static synchronized void setPersistFlag(String flag, int val) {
 			System.out.printf("%sSet persistent flag: %s = %s%s\n", ANSI.GRAY, flag, val, ANSI.RESET);
 			persistFlags.put(flag, val);
 		}
 		
-		@ExternalDNXFunction("getPersistFlagGlobal")
+		@ExternalDNXFunction("getPersistFlag")
 		public static int getPersistFlag(String flag) {
 			int val = persistFlags.computeIfAbsent(flag, f -> 0);
 			System.out.printf("%sGet persistent flag: %s = %s%s\n", ANSI.GRAY, flag, val, ANSI.RESET);
@@ -252,6 +258,33 @@ public class Main {
 			catch(Throwable e) {
 				throw new RuntimeException(e);
 			}
+		}
+		
+		@ExternalDNXFunction
+		public static void runSceneParallel(RuntimeContext context, String name) {
+			DNXRuntime runtime = new DNXRuntime(context.file);
+			RuntimeContext ctx = runtime.getContext();
+			ctx.globalVars = context.globalVars;
+			ctx.isParallelScene = true;
+			ctx.parent = context;
+			
+			ctx.setMissingExternalFunctionHandler((n, arguments) -> {
+				System.out.printf("%s%s", ANSI.GRAY, ctx.parallelString());
+				return context.getMissingExternalFunctionHandler().apply(n, arguments);
+			});
+			ctx.autodefineGlobals(context.autodefineGlobals());
+			ctx.setVerbose(context.isVerbose());
+			
+			context.getExternalFunctions()
+				   .stream()
+				   .filter(f -> !f.getName().equals("char"))
+				   .forEach(ctx::registerExternalFunction);
+			
+			ctx.setTextrunHandler((c, txt) -> {
+				throw new UnsupportedOperationException("cannot textrun from parallel scene");
+			});
+			
+			runtime.eval(context.file.sceneByName(name));
 		}
 		
 		@ExternalDNXFunction("temTriggerBattle")
