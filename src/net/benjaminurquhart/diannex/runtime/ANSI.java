@@ -48,6 +48,7 @@ public enum ANSI {
 		case 'R': return RED;
 		case '$': return RESET;
 		case 'Y': return YELLOW;
+		case 'W': return WHITE;
 		default: throw new IllegalArgumentException("Unknown color code: " + c);
 		}
 	}

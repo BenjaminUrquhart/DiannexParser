@@ -86,6 +86,7 @@ public class DNXRuntime {
 		if(context.flags == null) {
 			context.flags = new HashMap<>();
 		}
+		context.setTyper("Narrator");
 		Value value;
 		DNXFlag flag;
 		for(int i = 0; i < entry.flags.size(); i++) {

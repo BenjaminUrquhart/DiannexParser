@@ -210,6 +210,10 @@ public class RuntimeContext {
 		return choiceBeg;
 	}
 	
+	public Choicer getChoicer() {
+		return choicer;
+	}
+	
 	public void insertChoice(String name, double percentage, int jump) {
 		if(!choiceBeg) {
 			throw new IllegalStateException("Cannot insert choice outside of choice mode");

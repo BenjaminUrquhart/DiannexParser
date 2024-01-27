@@ -8,6 +8,7 @@ public class Choicer {
 
 	public List<Choice> choices = new ArrayList<>();
 	
+	private String secondChoiceOverride;
 	public void addChoice(String choice, double percentage, int jump) {
 		choices.add(new Choice(choice, percentage, jump));
 	}
@@ -29,13 +30,22 @@ public class Choicer {
 		return choices;
 	}
 	
+	public void overrideSecondChoice(String choice) {
+		secondChoiceOverride = choice;
+	}
+	
 	@SuppressWarnings("resource")
 	public Choice getChoice() {
 		List<Choice> choices = processChoices();
 		
 		System.out.println("Options: ");
 		for(int i = 0; i < choices.size(); i++) {
-			System.out.println(i + ": " + choices.get(i));
+			System.out.print(i + ": " + choices.get(i));
+			if(i == 1 && secondChoiceOverride != null) {
+				System.out.printf(" %s(%s%s)%s", ANSI.ORANGE, secondChoiceOverride, ANSI.ORANGE, ANSI.RESET);
+				secondChoiceOverride = null;
+			}
+			System.out.println();
 		}
 		Scanner sc = new Scanner(System.in);
 		String optStr;

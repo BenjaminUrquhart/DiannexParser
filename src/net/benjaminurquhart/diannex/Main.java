@@ -93,9 +93,8 @@ public class Main {
 			return;
 		}
 		
-		DNXScene scene = file.sceneByName("stars.cb_battle_g");
+		DNXScene scene = file.sceneByName("stars.bridge_ambush");
 		
-		Pattern pattern = Pattern.compile("(`([^`]+)`)", Pattern.CASE_INSENSITIVE);
 		
 		DNXRuntime runtime = new DNXRuntime(file);
 		RuntimeContext context = runtime.getContext();
@@ -111,39 +110,8 @@ public class Main {
 			return 0;
 		});
 		
-		TSUSFunctions.setPersistFlag("mgd_43", 7);
-		//TSUSFunctions.setFlag("st_kk_outfit", -1);
-		//TSUSFunctions.setFlag("plot", 58);
-		
 		context.setTextrunHandler((ctx, text) -> {
-			//System.out.printf("%s%s%s\n", ANSI.GRAY, text, ANSI.RESET);
-			text = text.replace("\\", "").replace("#", "\n");
-			Matcher matcher = pattern.matcher(text);
-			char code;
-			String toReplace, group, replace = "";
-			
-			while(matcher.find()) {
-				replace = "";
-				
-				toReplace = matcher.group(1);
-				group = matcher.group(2);
-				code = group.charAt(0);
-				
-				//System.out.println(toReplace + " " + group);
-				
-				switch(code) {
-				case 'c': replace = ANSI.getColorFrom(group.charAt(1)).toString(); break;
-				case 'i':
-				case 'e':
-				case '1':
-				case 'p': break;
-				default: replace = group;
-				}
-				text = text.replace(toReplace, replace);
-			}
-			if(!text.startsWith("\n") && text.contains("\n")) {
-				text = "\n" + text;
-			}
+			text = TSUSFunctions.parseText(text);
 			System.out.printf("[%s] %s", ctx.getTyper(), text);
 			if(context.isChoicing()) {
 				System.out.println();
@@ -158,7 +126,8 @@ public class Main {
 		});
 		
 		System.out.println("Return value: " + runtime.eval(scene).get());
-		//System.out.println("Return value: " + runtime.eval(scene).get());
+		//System.out.println("Return value: " + runtime.eval(file.sceneByName("extras.bugerpant_origins.square")).get());
+		//System.out.println("Return value: " + runtime.eval(file.sceneByName("extras.bugerpant_origins.end")).get());
 	}
 	
 	public static void dump(DNXFile file) throws IOException {
@@ -185,11 +154,55 @@ public class Main {
 		
 		private static Map<String, Integer> flags = new HashMap<>(), persistFlags = new HashMap<>();
 		
-		public static boolean isGeno, isEvac, skipWait = false;
+		public static boolean isGeno, isEvac, skipWait = true;
+		
+		public static final Pattern TEXT_CMD_PATTERN = Pattern.compile("(`([^`]+)`)", Pattern.CASE_INSENSITIVE);
+		
+		public static String parseText(String text) {
+			text = text.replace("\\", "").replace("#", "\n");
+			Matcher matcher = TEXT_CMD_PATTERN.matcher(text);
+			char code;
+			String toReplace, group, replace = "";
+			
+			while(matcher.find()) {
+				replace = "";
+				
+				toReplace = matcher.group(1);
+				group = matcher.group(2);
+				code = group.charAt(0);
+				
+				//System.out.println(toReplace + " " + group);
+				
+				// Inline text commands for TS!Underswap
+				// Most of this is ignorable
+				switch(code) {
+				case 'c': replace = ANSI.getColorFrom(group.charAt(1)).toString(); break;
+				case 'i':
+				case 'e':
+				case '1':
+				case '!':
+				case 'p': break;
+				default: replace = group;
+				}
+				text = text.replace(toReplace, replace);
+			}
+			if(!text.startsWith("\n") && text.contains("\n")) {
+				text = "\n" + text;
+			}
+			return text;
+		}
+		
+		@ExternalDNXFunction
+		public static void choiceSecondChange(RuntimeContext context, String choice) {
+			if(!context.isChoicing()) {
+				throw new IllegalStateException("cannot set choice override when not choosing");
+			}
+			context.getChoicer().overrideSecondChoice(parseText(choice));
+		}
 		
 		@ExternalDNXFunction
 		public static int itemsGetArmor() {
-			return 0;
+			return 35;
 		}
 		
 		@ExternalDNXFunction("xirandom")
