@@ -154,7 +154,7 @@ public class Main {
 		
 		private static Map<String, Integer> flags = new HashMap<>(), persistFlags = new HashMap<>();
 		
-		public static boolean isGeno, isEvac, skipWait = true;
+		public static boolean isGeno, isEvac, skipWait = false;
 		
 		public static final Pattern TEXT_CMD_PATTERN = Pattern.compile("(`([^`]+)`)", Pattern.CASE_INSENSITIVE);
 		
@@ -263,6 +263,10 @@ public class Main {
 				Value retVal =  context.runtime.eval(scene).get();
 				context.localVars = oldLocalVars;
 				context.stack = oldStack;
+				
+				// apparently goto in TS!Underswap just straight up
+				// replaces the current scene
+				context.runtime.halt();
 				return retVal;
 			}
 			catch(RuntimeException e) {

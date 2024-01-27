@@ -53,7 +53,7 @@ public class DNXRuntime {
 	
 	
 	private RuntimeContext context;
-	private volatile boolean suspended;
+	private volatile boolean suspended, halt;
 	
 	public DNXRuntime(DNXFile file) {
 		this.context = new RuntimeContext(this, file);
@@ -69,6 +69,10 @@ public class DNXRuntime {
 	
 	public boolean setSuspended(boolean suspended) {
 		return this.suspended = suspended;
+	}
+	
+	public void halt() {
+		halt = true;
 	}
 	
 	public CompletableFuture<Value> eval(DNXCompiled entry) {
@@ -127,7 +131,7 @@ public class DNXRuntime {
 		
 		List<String> prevInstructions = new ArrayList<>();
 		
-		for(int ptr = startPtr; ptr < insts.length; ptr++) {
+		for(int ptr = startPtr; ptr < insts.length && !halt; ptr++) {
 			
 			while(suspended);
 			
@@ -189,6 +193,9 @@ public class DNXRuntime {
 				throw new RuntimeException(e);
 			}
 			//System.out.println(context.stack);
+		}
+		if(context.depth == 0) {
+			halt = false;
 		}
 		return context.stack.isEmpty() ? null : context.stack.peek();
 	}
