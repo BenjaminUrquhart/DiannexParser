@@ -8,7 +8,7 @@ repositories {
     maven { url 'https://jitpack.io' }
 }
 group = "net.benjaminurquhart.diannex"
-mainClassName = "net.benjaminurquhart.diannex.Main"
+mainClassName = "net.benjaminurquhart.diannex.ui.Main"
 
 
 sourceSets {

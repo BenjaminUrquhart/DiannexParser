@@ -47,6 +47,8 @@ public class DNXFile {
 	
 	protected boolean ready;
 	
+	private volatile boolean scenesDirty, functionsDirty, definitionsDirty;
+	
 	public DNXFile() {
 		scenes = new ArrayList<>();
 		strings = new ArrayList<>();
@@ -257,12 +259,6 @@ public class DNXFile {
 			bytecode.addAll(list);
 		};
 		
-		for(DNXDefinition definition : definitions) {
-			add.accept(definition.instructions);
-		}
-		for(DNXFunction function : functions) {
-			add.accept(function.instructions);
-		}
 		for(DNXScene scene : scenes) {
 			add.accept(scene.instructions);
 			for(DNXFlag flag : scene.flags) {
@@ -270,6 +266,14 @@ public class DNXFile {
 				add.accept(flag.keyBytecode);
 			}
 		}
+		for(DNXFunction function : functions) {
+			add.accept(function.instructions);
+		}
+		for(DNXDefinition definition : definitions) {
+			add.accept(definition.instructions);
+		}
+
+
 		
 		Set<DNXBytecode> bytecodeSet = new HashSet<>(bytecode);
 		if(bytecodeSet.size() != bytecode.size()) {
@@ -569,7 +573,7 @@ public class DNXFile {
 	
 	public void addScene(DNXScene scene) {
 		addNonNullUnique(scenes, scene);
-		rebuildSceneMap();
+		scenesDirty = true;
 	}
 	
 	public void addString(DNXString string) {
@@ -578,24 +582,27 @@ public class DNXFile {
 	
 	public void addFunction(DNXFunction function) {
 		addNonNullUnique(functions, function);
-		rebuildFunctionMap();
+		functionsDirty = true;
 	}
 	
 	public void addDefinition(DNXDefinition definition) {
 		addNonNullUnique(definitions, definition);
-		rebuildDefinitionMap();
+		definitionsDirty = true;
 	}
 	
 	
 	public DNXDefinition definitionByName(String name) {
+		if(definitionsDirty) rebuildDefinitionMap();
 		return definitionMap.get(name);
 	}
 	
 	public DNXFunction functionByName(String name) {
+		if(functionsDirty) rebuildFunctionMap();
 		return functionMap.get(name);
 	}
 	
 	public DNXScene sceneByName(String name) {
+		if(scenesDirty) rebuildSceneMap();
 		return sceneMap.get(name);
 	}
 	
@@ -606,21 +613,18 @@ public class DNXFile {
 		}
 	}
 	
-	public void rebuildSceneMap() {
+	private void rebuildSceneMap() {
+		scenesDirty = false;
 		rebuildMap(sceneMap, scenes);
 	}
 	
-	public void rebuildFunctionMap() {
+	private void rebuildFunctionMap() {
+		functionsDirty = false;
 		rebuildMap(functionMap, functions);
 	}
 	
-	public void rebuildDefinitionMap() {
+	private void rebuildDefinitionMap() {
+		definitionsDirty = false;
 		rebuildMap(definitionMap, definitions);
-	}
-	
-	public void rebuildMaps() {
-		rebuildSceneMap();
-		rebuildFunctionMap();
-		rebuildDefinitionMap();
 	}
 }

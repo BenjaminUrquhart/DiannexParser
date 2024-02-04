@@ -90,7 +90,7 @@ public class DNXAssembler {
 			throw new IllegalStateException("unclosed string: " + line);
 		}
 		if(escaped && !unescape) {
-			throw new IllegalStateException("trailing unescaped backslash: " + line + " (raw newlines are not supported)");
+			throw new IllegalStateException("trailing unescaped backslash: " + line + " (raw newlines are not supported, use \\n)");
 		}
 		append.accept(false);
 		return out.toArray(String[]::new);

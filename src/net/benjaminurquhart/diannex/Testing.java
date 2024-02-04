@@ -16,12 +16,12 @@ import com.google.common.io.Files;
 
 import net.benjaminurquhart.diannex.runtime.*;
 
-public class Main {
+public class Testing {
 	
 	public static boolean WAIT_FOR_INPUT = true;
 	
 	public static boolean OFFSET_LOOKUP = false;
-	public static boolean DUMP_ORDER = false;
+	public static boolean DUMP_ORDER = true;
 	
 	public static void main(String[] args) throws Exception {
 		
@@ -135,6 +135,11 @@ public class Main {
 		disassembleAll(file, file.getScenes(), root, "scenes");
 		disassembleAll(file, file.getFunctions(), root, "functions");
 		disassembleAll(file, file.getDefinitions(), root, "definitions");
+		
+		File defFolder = new File(root, "definitions");
+		for(DNXDefinition def : file.getDefinitions()) {
+			Files.write(def.reference.get().getBytes(), new File(defFolder, def.name.get() + ".def"));
+		}
 	}
 	
 	public static void disassembleAll(DNXFile file, List<? extends DNXCompiled> list, File root, String folderName) throws IOException {
