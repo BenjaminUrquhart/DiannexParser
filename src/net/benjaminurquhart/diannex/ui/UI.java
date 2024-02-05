@@ -1,6 +1,6 @@
 package net.benjaminurquhart.diannex.ui;
 
-import java.awt.BorderLayout;
+import java.awt.GridLayout;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -117,16 +117,17 @@ public class UI extends JPanel implements ActionListener {
 		infoText = new JTextArea("No file loaded");
 		infoText.setEditable(false);
 		
-		setLayout(new BorderLayout());
+		setLayout(new GridLayout(3, 1));
 		
-		// TODO: add a button to open a dnx file.
-		// I just copied this from another project on short notice 
-		// and can't be bothered to redo layout stuff.
-		add(infoText, BorderLayout.PAGE_START);
-		add(importButton, BorderLayout.LINE_START);
-		add(saveButton, BorderLayout.CENTER);
-		add(exportButton, BorderLayout.LINE_END);
-		add(progressBar, BorderLayout.PAGE_END);
+		JPanel buttonPane = new JPanel();
+		buttonPane.setLayout(new GridLayout(1, 3));
+		buttonPane.add(importButton);
+		buttonPane.add(saveButton);
+		buttonPane.add(exportButton);
+		
+		add(infoText);
+		add(buttonPane);
+		add(progressBar);
 		
 		ready = true;
 		GenericWorker worker = new GenericWorker("Loading...", () -> {
@@ -134,6 +135,8 @@ public class UI extends JPanel implements ActionListener {
 				disableControls();
 				data = new DNXFile(file);
 				updateInfoText();
+				Main.frame.setResizable(true);
+				Main.frame.pack();
 				onFinish(null);
 			}
 			catch(Exception e) {
@@ -151,7 +154,7 @@ public class UI extends JPanel implements ActionListener {
 		else {
 			infoText.setText(String.format("Scenes: %d\nFunctions: %d\nDefinitions: %d", data.getScenes().size(), data.getFunctions().size(), data.getDefinitions().size()));
 		}
-		Main.frame.pack();
+		//Main.frame.pack();
 	}
 
 	@Override
@@ -168,8 +171,13 @@ public class UI extends JPanel implements ActionListener {
 						DNXCompiled entry;
 						boolean defining = false, isScene, isFunc, isDef;
 						Set<File> files = crawlFolder(folderSelector.getSelectedFile());
+						progressBar.setIndeterminate(false);
+						progressBar.setMaximum(files.size());
 						List<DNXBytecode> bytecode = null;
+						int progress = 0;
 						for(File file : files) {
+							progress++;
+							progressBar.setValue(progress);
 							isScene = file.getParentFile().getName().equals("scenes");
 							isFunc = file.getParentFile().getName().equals("functions");
 							isDef = file.getParentFile().getName().equals("definitions");
@@ -309,7 +317,7 @@ public class UI extends JPanel implements ActionListener {
 	}
 	
 	public void onFinish(Throwable e) {
-		Main.frame.pack();
+		//Main.frame.pack();
 		if(e != null) {
 			e.printStackTrace(System.out);
 			Toolkit.getDefaultToolkit().beep();
