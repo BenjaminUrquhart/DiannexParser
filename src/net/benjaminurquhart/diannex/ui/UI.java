@@ -257,7 +257,7 @@ public class UI extends JPanel implements ActionListener {
 			if(folderSelector.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
 				worker = new GenericWorker("Exporting...", () -> {
 					try {
-						dump(data);
+						dump(data, folderSelector.getSelectedFile());
 					}
 					catch(Exception e) {
 						throwUnchecked(e);
@@ -331,8 +331,7 @@ public class UI extends JPanel implements ActionListener {
 		progressBar.setValue(0);
 	}
 	
-	private static void dump(DNXFile file) throws IOException {
-		File root = new File("output");
+	private static void dump(DNXFile file, File root) throws IOException {
 		disassembleAll(file, file.getScenes(), root, "scenes");
 		disassembleAll(file, file.getFunctions(), root, "functions");
 		disassembleAll(file, file.getDefinitions(), root, "definitions");

@@ -65,7 +65,7 @@ public class DNXString implements IDNXSerializable {
 		return value;
 	}
 	public String getClean() {
-		return value.replace("\n", "\\n").replace("\r", "\\r").replace("\"", "\\\"");
+		return value.replace("\\", "\\\\").replace("\n", "\\n").replace("\r", "\\r").replace("\"", "\\\"");
 	}
 	public String toString() {
 		return String.format("DNXString [%s]", getClean());
