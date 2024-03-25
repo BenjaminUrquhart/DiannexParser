@@ -25,18 +25,25 @@ public class ValueStack extends Stack<Value> {
 	}
 	
 	public <T> T pop(Class<T> clazz) {
-		T val = pop().get(clazz);
-		provider.reclaim();
+		Value value = pop();
+		T val = value.get(clazz);
+		provider.put(value);
 		return val;
+	}
+	
+	@Override
+	public Value pop() {
+		if(isEmpty()) {
+			System.err.printf("%sStack empty, returning null\n", ANSI.RESET);
+			return Value.NULL;
+		}
+		return super.pop();
 	}
 	
 	@Override
 	public Value push(Value value) {
 		if(value == null) {
-			value = new Value(null);
-		}
-		else if(provider.isInUse(value)) {
-			value = new Value(value.get());
+			value = Value.NULL;
 		}
 		
 		return super.push(value);

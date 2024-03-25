@@ -1,16 +1,13 @@
 package net.benjaminurquhart.diannex.runtime;
 
-/*
+
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Stack;
-*/
 
-// This was originally going to be a cool caching thing
-// but I messed it up somewhere.
 public class ValueProvider {
 	
-	/*
+	
 	private Set<Value> inUse;
 	private Stack<Value> values;
 	
@@ -21,36 +18,38 @@ public class ValueProvider {
 		}
 		inUse = new HashSet<>();
 	}
-	*/
+	
 	public Value get(Object obj) {
-		if(obj instanceof Value) {
-			return ((Value)obj).clone();
+		while(obj instanceof Value) {
+			obj = ((Value)obj).get();
 		}
-		return new Value(obj);
-		/*
+		
+		Value value;
 		if(values.isEmpty()) {
-			return new Value(obj);
+			value = new Value(obj);
 		}
-		Value value = values.pop();
+		else {
+			value = values.pop();
+		}
 		value.update(obj);
 		inUse.add(value);
-		return value;*/
+		return value;
 	}
 	
-	public void put(Value value) {/*
+	public void put(Value value) {
 		inUse.remove(value);
-		values.push(value);*/
+		values.push(value);
 	}
 	
 	public boolean isInUse(Value value) {
-		return false; //inUse.contains(value);
+		return inUse.contains(value);
 	}
 	
-	public void reclaim() {/*
+	public void reclaim() {
 		for(Value value : inUse) {
 			value.update(null);
 			values.add(value);
 		}
-		inUse.clear();*/
+		inUse.clear();
 	}
 }

@@ -42,6 +42,9 @@ public class Value {
 		if(locked) {
 			throw new IllegalStateException("value marked as immutable");
 		}
+		if(obj == value) {
+			return;
+		}
 		castCache.clear();
 		if(obj instanceof Boolean) {
 			value = (long)(((boolean)obj) ? 1 : 0);
@@ -100,7 +103,7 @@ public class Value {
 			if(clazz.isPrimitive()) {
 				// Certified type boxing moment
 				if(clazz == boolean.class) {
-					return (T)Boolean.valueOf(false);
+					return (T)Boolean.FALSE;
 				}
 				return clazz.cast(0);
 			}

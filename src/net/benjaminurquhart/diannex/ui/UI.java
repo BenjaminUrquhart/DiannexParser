@@ -24,6 +24,7 @@ import javax.swing.JTextArea;
 import javax.swing.filechooser.FileFilter;
 
 import net.benjaminurquhart.diannex.DNXAssembler;
+import net.benjaminurquhart.diannex.DNXAssembler.AssembleException;
 import net.benjaminurquhart.diannex.DNXBytecode;
 import net.benjaminurquhart.diannex.DNXCompiled;
 import net.benjaminurquhart.diannex.DNXDefinition;
@@ -167,7 +168,7 @@ public class UI extends JPanel implements ActionListener {
 			if(folderSelector.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
 				worker = new GenericWorker("Importing...", () -> {
 					try {
-						String name, text;
+						String name, text, folderName;
 						DNXCompiled entry;
 						boolean defining = false, isScene, isFunc, isDef;
 						Set<File> files = crawlFolder(folderSelector.getSelectedFile());
@@ -178,9 +179,10 @@ public class UI extends JPanel implements ActionListener {
 						for(File file : files) {
 							progress++;
 							progressBar.setValue(progress);
-							isScene = file.getParentFile().getName().equals("scenes");
-							isFunc = file.getParentFile().getName().equals("functions");
-							isDef = file.getParentFile().getName().equals("definitions");
+							folderName = file.getParentFile().getName().toLowerCase();
+							isScene = folderName.equals("scenes");
+							isFunc = folderName.equals("functions");
+							isDef = folderName.equals("definitions");
 							if(!isScene && !isFunc && !isDef) {
 								System.out.printf("Ignoring %s\n", file.getAbsolutePath());
 								continue;
@@ -251,6 +253,9 @@ public class UI extends JPanel implements ActionListener {
 						}
 						updateInfoText();
 					}
+					catch(AssembleException e) {
+						throwUnchecked(e.getCause());
+					}
 					catch(Exception e) {
 						throwUnchecked(e);
 					}
@@ -265,7 +270,7 @@ public class UI extends JPanel implements ActionListener {
 			if(folderSelector.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
 				worker = new GenericWorker("Exporting...", () -> {
 					try {
-						dump(data, folderSelector.getSelectedFile());
+						dump(folderSelector.getSelectedFile());
 					}
 					catch(Exception e) {
 						throwUnchecked(e);
@@ -339,18 +344,22 @@ public class UI extends JPanel implements ActionListener {
 		progressBar.setValue(0);
 	}
 	
-	private static void dump(DNXFile file, File root) throws IOException {
-		disassembleAll(file, file.getScenes(), root, "scenes");
-		disassembleAll(file, file.getFunctions(), root, "functions");
-		disassembleAll(file, file.getDefinitions(), root, "definitions");
+	private void dump(File root) throws IOException {
+		progressBar.setMaximum(data.getScenes().size() + data.getFunctions().size() + data.getDefinitions().size() * 2);
+		progressBar.setIndeterminate(false);
+		disassembleAll(data.getScenes(), root, "scenes");
+		disassembleAll(data.getFunctions(), root, "functions");
+		disassembleAll(data.getDefinitions(), root, "definitions");
 		
 		File defFolder = new File(root, "definitions");
-		for(DNXDefinition def : file.getDefinitions()) {
+		for(DNXDefinition def : data.getDefinitions()) {
+			progressBar.setString(def.name.get() + " (def)");
+			progressBar.setValue(progressBar.getValue() + 1);
 			Files.write(new File(defFolder, def.name.get() + ".def").toPath(), def.reference.get().getBytes());
 		}
 	}
 	
-	private static void disassembleAll(DNXFile file, List<? extends DNXCompiled> list, File root, String folderName) throws IOException {
+	private void disassembleAll(List<? extends DNXCompiled> list, File root, String folderName) throws IOException {
 		File folder = new File(root, folderName);
 		
 		if(!folder.exists()) {
@@ -358,7 +367,9 @@ public class UI extends JPanel implements ActionListener {
 		}
 		
 		for(DNXCompiled entry : list) {
-			Files.write(new File(folder, entry.name.get() + ".asm").toPath(), entry.disassemble(file).getBytes());
+			progressBar.setString(entry.name.get());
+			progressBar.setValue(progressBar.getValue() + 1);
+			Files.write(new File(folder, entry.name.get() + ".asm").toPath(), entry.disassemble(data).getBytes());
 		}
 	}
 	
@@ -385,7 +396,7 @@ public class UI extends JPanel implements ActionListener {
 	
 	// I love Java
     @SuppressWarnings("unchecked")
-    private static <E extends Exception> void throwUnchecked(Exception e) throws E {
+    private static <E extends Exception> void throwUnchecked(Throwable e) throws E {
         throw (E) e;
     }
 }

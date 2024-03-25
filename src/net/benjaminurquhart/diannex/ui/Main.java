@@ -18,7 +18,7 @@ public class Main {
 		frame.requestFocus();
 		frame.setVisible(true);
 		
-		while(true);
+		while(true) Thread.sleep(10);
 	}
 
 }

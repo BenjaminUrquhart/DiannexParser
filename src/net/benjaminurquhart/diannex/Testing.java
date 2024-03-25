@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 
 import com.google.common.io.Files;
 
+import net.benjaminurquhart.diannex.decompiler.DNXDecompiler;
 import net.benjaminurquhart.diannex.runtime.*;
 
 public class Testing {
@@ -21,13 +22,13 @@ public class Testing {
 	public static boolean WAIT_FOR_INPUT = true;
 	
 	public static boolean OFFSET_LOOKUP = false;
-	public static boolean DUMP_ORDER = true;
+	public static boolean DUMP_ORDER = false;
 	
 	public static void main(String[] args) throws Exception {
 		
 		System.out.print(ANSI.RESET);
 		
-		File data = new File("game.dxb");
+		File data = new File("game_test.dxb");
 		DNXFile file = new DNXFile(data);
 		
 		//dump(file);
@@ -93,13 +94,17 @@ public class Testing {
 			return;
 		}
 		
-		DNXScene scene = file.sceneByName("stars.bridge_ambush");
+		DNXScene scene = file.sceneByName("stars.stands_setup");
+		System.out.print(DNXDecompiler.decompile(scene, file));
 		
-		
+		//runScene(file, scene);
+	}
+	
+	public static void runScene(DNXFile file, DNXScene scene) throws Exception {
 		DNXRuntime runtime = new DNXRuntime(file);
 		RuntimeContext context = runtime.getContext();
 		
-		context.setVerbose(false);
+		context.setVerbose(true);
 		context.autodefineGlobals(true);
 		context.registerExternalFunction(new ExternalFunction((Function<String, File>)(filename) -> new File(filename), "openFile"));
 		//context.registerExternalFunctions(ExternalFunction.getFrom(TSUSActorStubs.class));
@@ -125,9 +130,15 @@ public class Testing {
 			}
 		});
 		
-		System.out.println("Return value: " + runtime.eval(scene).get());
-		//System.out.println("Return value: " + runtime.eval(file.sceneByName("extras.bugerpant_origins.square")).get());
-		//System.out.println("Return value: " + runtime.eval(file.sceneByName("extras.bugerpant_origins.end")).get());
+		//context.setGlobal("r", 11);
+		//context.setGlobal("m1.isActive", true);
+		
+		//TSUSFunctions.setPersistFlag("mgd_43", 7);
+		runtime.eval(scene).thenAccept(v -> {
+			System.out.println("Return value: " + String.valueOf(v));
+			System.exit(0);
+		});
+		while(true) Thread.sleep(10);
 	}
 	
 	public static void dump(DNXFile file) throws IOException {
@@ -158,10 +169,16 @@ public class Testing {
 	public static class TSUSFunctions {
 		
 		private static Map<String, Integer> flags = new HashMap<>(), persistFlags = new HashMap<>();
+		private static List<String> formatParams = new ArrayList<>();
 		
 		public static boolean isGeno, isEvac, skipWait = false;
 		
 		public static final Pattern TEXT_CMD_PATTERN = Pattern.compile("(`([^`]+)`)", Pattern.CASE_INSENSITIVE);
+		
+		static {
+			flags.put("plot", 66);
+			flags.put("sts_bnb", 270);
+		}
 		
 		public static String parseText(String text) {
 			text = text.replace("\\", "").replace("#", "\n");
@@ -181,11 +198,13 @@ public class Testing {
 				// Inline text commands for TS!Underswap
 				// Most of this is ignorable
 				switch(code) {
+				case '$': replace = formatParams.get(Integer.parseInt(group.substring(1))); break;
 				case 'c': replace = ANSI.getColorFrom(group.charAt(1)).toString(); break;
 				case 'i':
 				case 'e':
 				case '1':
 				case '!':
+				case '@':
 				case 'p': break;
 				default: replace = group;
 				}
@@ -195,6 +214,16 @@ public class Testing {
 				text = "\n" + text;
 			}
 			return text;
+		}
+		
+		@ExternalDNXFunction
+		public static void setFormat(int index, Object obj) {
+			
+			while(formatParams.size() <= index) {
+				formatParams.add("<err>");
+			}
+			// please do not put regex in here
+			formatParams.set(index, String.valueOf(obj));
 		}
 		
 		@ExternalDNXFunction
@@ -295,7 +324,8 @@ public class Testing {
 				return context.getMissingExternalFunctionHandler().apply(n, arguments);
 			});
 			ctx.autodefineGlobals(context.autodefineGlobals());
-			ctx.setVerbose(context.isVerbose());
+			ctx.setVerbose(true);
+			//ctx.setVerbose(context.isVerbose());
 			
 			context.getExternalFunctions()
 				   .stream()
@@ -306,7 +336,7 @@ public class Testing {
 				throw new UnsupportedOperationException("cannot textrun from parallel scene");
 			});
 			
-			runtime.eval(context.file.sceneByName(name));
+			runtime.eval(ctx.file.sceneByName(name)).thenAccept(v -> System.out.printf("%sParallel scene '%s' ended with return value '%s'%s\n", ANSI.GRAY, name, v.get(), ANSI.RESET));
 		}
 		
 		@ExternalDNXFunction("temTriggerBattle")
@@ -324,6 +354,11 @@ public class Testing {
 		public static boolean isEvac(int area) {
 			System.out.printf("%sisEvac(%d) -> %s%s\n", ANSI.GRAY, area, isEvac, ANSI.RESET);
 			return isEvac;
+		}
+		
+		@ExternalDNXFunction("cb_fight_type")
+		public static int cbFightType() {
+			return 1;
 		}
 	}
 
